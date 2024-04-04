@@ -4,9 +4,10 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.65.0"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-#domain = "0.7"
-domain = {git="https://github.com/NLnetLabs/domain.git", branch="main", features = ["resolv"]}
-clap = { version = "4", features = ["derive"] }
+bytes    = "1"
+clap     = { version = "4", features = ["derive", "unstable-doc"] }
+domain   = { git="https://github.com/NLnetLabs/domain.git", branch="main", features = ["resolv", "unstable-client-transport"]}
+tokio    = { version = "1.33", features = ["rt-multi-thread"] }
+
+
