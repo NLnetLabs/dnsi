@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
+use std::time::Duration;
 use bytes::Bytes;
 use domain::base::iana::Rtype;
 use domain::base::message::Message;
@@ -59,6 +60,17 @@ pub struct Args {
     #[arg(long, short = 'f')]
     force: bool,
 
+    /// Set the timeout for a query.
+    #[arg(long, value_name="SECONDS")]
+    timeout: Option<f32>,
+
+    /// Set the number of retries over UDP.
+    #[arg(long)]
+    retries: Option<u8>,
+
+    /// Set the advertised UDP payload size.
+    #[arg(long)]
+    udp_payload_size: Option<u16>,
 }
 
 impl Args {
@@ -173,15 +185,11 @@ impl Args {
         server: SocketAddr,
         request: RequestMessage<Vec<u8>>
     ) -> Result<Message<Bytes>, Error> {
-        let stream_config = client::stream::Config::new();
-        let multi_stream_config = client::multi_stream::Config::from(
-            stream_config
-        );
         let tcp_connect = client::protocol::TcpConnect::new(server);
         if self.tcp {
             let (conn, tran) = client::multi_stream::Connection::with_config(
                 tcp_connect,
-                multi_stream_config,
+                self.multi_stream_config(),
             );
             tokio::spawn(tran.run());
             conn.send_request(request).get_response().await.map_err(|err| {
@@ -189,13 +197,9 @@ impl Args {
             })
         }
         else {
-            let dgram_config = client::dgram::Config::new();
-            let dgram_stream_config = client::dgram_stream::Config::from_parts(
-                dgram_config, multi_stream_config
-            );
             let udp_connect = client::protocol::UdpConnect::new(server);
             let (conn, tran) = client::dgram_stream::Connection::with_config(
-                udp_connect, tcp_connect, dgram_stream_config,
+                udp_connect, tcp_connect, self.dgram_stream_config(),
             );
             tokio::spawn(tran.run());
             conn.send_request(request).get_response().await.map_err(|err| {
@@ -297,6 +301,42 @@ impl Args {
                 _ => println!("NO OPT!"),
             }
         }
+    }
+
+    fn timeout(&self) -> Option<Duration> {
+        self.timeout.map(Duration::from_secs_f32)
+    }
+
+    fn dgram_config(&self) -> client::dgram::Config {
+        let mut res = client::dgram::Config::new();
+        if let Some(timeout) = self.timeout() {
+            res.set_read_timeout(timeout);
+        }
+        if let Some(retries) = self.retries {
+            res.set_max_retries(retries)
+        }
+        if let Some(size) = self.udp_payload_size {
+            res.set_udp_payload_size(Some(size))
+        }
+        res
+    }
+
+    fn stream_config(&self) -> client::stream::Config {
+        let mut res = client::stream::Config::new();
+        if let Some(timeout) = self.timeout() {
+            res.set_response_timeout(timeout);
+        }
+        res
+    }
+
+    fn multi_stream_config(&self) -> client::multi_stream::Config {
+        client::multi_stream::Config::from(self.stream_config())
+    }
+
+    fn dgram_stream_config(&self) -> client::dgram_stream::Config {
+        client::dgram_stream::Config::from_parts(
+            self.dgram_config(), self.multi_stream_config()
+        )
     }
 }
 
