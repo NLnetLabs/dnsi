@@ -7,7 +7,7 @@ use bytes::Bytes;
 use domain::base::iana::Rtype;
 use domain::base::message::Message;
 use domain::base::message_builder::MessageBuilder;
-use domain::base::name::{Dname, UncertainDname};
+use domain::base::name::{Name, UncertainName};
 use domain::base::opt::AllOptData;
 use domain::net::client;
 use domain::net::client::request::{RequestMessage, SendRequest};
@@ -21,7 +21,7 @@ use crate::idns::error::Error;
 pub struct Args {
     /// The name of the resource records to look up
     #[arg(value_name="QUERY_NAME")]
-    qname: Dname<Vec<u8>>,
+    qname: Name<Vec<u8>>,
 
     /// The record type to look up
     #[arg(value_name="QUERY_TYPE", default_value = "A")]
@@ -55,10 +55,23 @@ pub struct Args {
     #[arg(long)]
     no_rd: bool,
 
+    /// Disable all sanity checks.
+    #[arg(long, short = 'f')]
+    force: bool,
+
 }
 
 impl Args {
     pub fn execute(self) -> Result<(), Error> {
+        if !self.force {
+            if self.qtype == Rtype::AXFR || self.qtype == Rtype::IXFR {
+                return Err(
+                    "Please use the 'xfr' command for zone transfer.\n\
+                     (Use --force to query anyway.)".into()
+                );
+            }
+        }
+
         tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
@@ -81,14 +94,14 @@ impl Args {
 
     /// Resolves a provided server name.
     async fn host_server(
-        &self, server: &UncertainDname<Vec<u8>>
+        &self, server: &UncertainName<Vec<u8>>
     ) -> Result<Vec<SocketAddr>, Error> {
         let resolver = StubResolver::new();
         let answer = match server {
-            UncertainDname::Absolute(name) => {
+            UncertainName::Absolute(name) => {
                 resolver.lookup_host(name).await
             }
-            UncertainDname::Relative(name) => {
+            UncertainName::Relative(name) => {
                 resolver.search_host(name).await
             }
         }.map_err(|err| err.to_string())?;
@@ -154,7 +167,7 @@ impl Args {
         unreachable!()
     }
 
-    /// Sends the request to exactyl one server and returns the response.
+    /// Sends the request to exactly one server and returns the response.
     async fn send_and_receive_single(
         &self,
         server: SocketAddr,
@@ -256,7 +269,7 @@ impl Args {
         let additional_section = response.additional().unwrap().limit_to::<AllRecordData<_, _>>();
 
         for record in additional_section {
-            if record.as_ref().unwrap().rtype() != Rtype::Opt {
+            if record.as_ref().unwrap().rtype() != Rtype::OPT {
                 println!("{}", record.unwrap());
             }
         }
@@ -292,7 +305,7 @@ impl Args {
 
 #[derive(Clone, Debug)]
 enum ServerName {
-    Name(UncertainDname<Vec<u8>>),
+    Name(UncertainName<Vec<u8>>),
     Addr(IpAddr),
 }
 
@@ -304,7 +317,7 @@ impl FromStr for ServerName {
             Ok(ServerName::Addr(addr))
         }
         else {
-            UncertainDname::from_str(s).map(Self::Name).map_err(|_|
+            UncertainName::from_str(s).map(Self::Name).map_err(|_|
                 "illegal host name"
             )
         }
