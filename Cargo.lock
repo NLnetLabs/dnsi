@@ -238,7 +238,7 @@ dependencies = [
 [[package]]
 name = "domain"
 version = "0.10.0-dev"
-source = "git+https://github.com/NLnetLabs/domain.git?branch=main#080b81eee9945090bdf9574a7cff06d8b2fdf1e7"
+source = "git+https://github.com/NLnetLabs/domain.git?branch=message-for-slice#b78477b815df89d9341384f9ee6f339feb9f384c"
 dependencies = [
  "bytes",
  "futures-util",

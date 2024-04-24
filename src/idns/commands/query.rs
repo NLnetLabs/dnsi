@@ -9,13 +9,12 @@ use domain::base::iana::Rtype;
 use domain::base::message::Message;
 use domain::base::message_builder::MessageBuilder;
 use domain::base::name::{Name, UncertainName};
-use domain::base::opt::AllOptData;
 use domain::net::client;
 use domain::net::client::request::{RequestMessage, SendRequest};
-use domain::rdata::AllRecordData;
 use domain::resolv::StubResolver;
 use domain::resolv::stub::conf::ResolvConf;
 use crate::idns::error::Error;
+use crate::idns::output::OutputFormat;
 
 
 #[derive(Clone, Debug, clap::Args)]
@@ -71,6 +70,10 @@ pub struct Args {
     /// Set the advertised UDP payload size.
     #[arg(long)]
     udp_payload_size: Option<u16>,
+
+    /// Select the output format.
+    #[arg(long = "format", default_value = "dig")]
+    output_format: OutputFormat,
 }
 
 impl Args {
@@ -100,7 +103,7 @@ impl Args {
 
         let request = self.create_request();
         let answer = self.send_and_receive(servers, request).await?;
-        self.print_response(answer);
+        self.output_format.print(answer.for_slice_ref())?;
         Ok(())
     }
 
@@ -205,101 +208,6 @@ impl Args {
             conn.send_request(request).get_response().await.map_err(|err| {
                 err.to_string().into()
             })
-        }
-    }
-
-    fn print_response(&self, response: Message<Bytes>) {
-        /* Header */
-        let header = response.header();
-
-        println!(";; ->>HEADER<<- opcode: {}, rcode: {}, id: {}",
-                header.opcode(), header.rcode(), header.id());
-
-        print!(";; flags: {}", header.flags());
-
-        let count = response.header_counts();
-        println!(" ; QUERY: {}, ANSWER: {}, AUTHORITY: {}, ADDITIONAL: {}\n",
-            count.qdcount(), count.ancount(), count.nscount(), count.arcount());
-
-        /* Question */
-        println!(";; QUESTION SECTION:");
-
-        let question_section = response.question();
-
-        for question in question_section {
-            println!("; {}", question.unwrap());
-        }
-
-        /* Return early if there are no more records */
-        if count.ancount() == 0 && count.nscount() == 0 && count.arcount() == 0 {
-            println!();
-            return;
-        }
-
-        /* Answer */
-        println!("\n;; ANSWER SECTION:");
-
-        /* Unpack and parse with all known record types */
-        let answer_section = response.answer().unwrap().limit_to::<AllRecordData<_, _>>();
-
-        for record in answer_section {
-            println!("{}", record.unwrap());
-        }
-
-        /* Return early if there are no more records */
-        if count.nscount() == 0 && count.arcount() == 0 {
-            println!();
-            return;
-        }
-
-        /* Authority */
-        println!("\n;; AUTHORITY SECTION:");
-
-        let authority_section = response.authority().unwrap().limit_to::<AllRecordData<_, _>>();
-
-        for record in authority_section {
-            println!("{}", record.unwrap());
-        }
-
-        /* Return early if there are no more records */
-        if count.arcount() == 0 {
-            println!();
-            return;
-        }
-
-        /* Additional */
-        println!("\n;; ADDITIONAL SECTION:");
-
-        let additional_section = response.additional().unwrap().limit_to::<AllRecordData<_, _>>();
-
-        for record in additional_section {
-            if record.as_ref().unwrap().rtype() != Rtype::OPT {
-                println!("{}", record.unwrap());
-            }
-        }
-
-        let opt_record = response.opt().unwrap();
-
-        println!("\n;; EDNS: version {}; flags: {}; udp: {}", // @TODO remove hardcode UDP
-            opt_record.version(), opt_record.dnssec_ok(), opt_record.udp_payload_size()); 
-
-        for option in opt_record.opt().iter::<AllOptData<_, _>>() {
-            let opt = option.unwrap();
-            match opt {
-                AllOptData::Nsid(nsid) => println!("; NSID: {}", nsid),
-                AllOptData::Dau(dau) => println!("; DAU: {}", dau),
-                AllOptData::Dhu(dhu) => println!("; DHU: {}", dhu),
-                AllOptData::N3u(n3u) => println!("; N3U: {}", n3u),
-                AllOptData::Expire(expire) => println!("; EXPIRE: {}", expire),
-                AllOptData::TcpKeepalive(tcpkeepalive) => println!("; TCPKEEPALIVE: {}", tcpkeepalive),
-                AllOptData::Padding(padding) => println!("; PADDING: {}", padding),
-                AllOptData::ClientSubnet(clientsubnet) => println!("; CLIENTSUBNET: {}", clientsubnet),
-                AllOptData::Cookie(cookie) => println!("; COOKIE: {}", cookie),
-                AllOptData::Chain(chain) => println!("; CHAIN: {}", chain),
-                AllOptData::KeyTag(keytag) => println!("; KEYTAG: {}", keytag),
-                AllOptData::ExtendedError(extendederror) => println!("; EDE: {}", extendederror),
-                _ => println!("NO OPT!"),
-            }
         }
     }
 

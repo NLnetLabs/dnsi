@@ -7,7 +7,7 @@ rust-version = "1.65.0"
 [dependencies]
 bytes    = "1"
 clap     = { version = "4", features = ["derive", "unstable-doc"] }
-domain   = { git="https://github.com/NLnetLabs/domain.git", branch="main", features = ["resolv", "unstable-client-transport"]}
+domain   = { git="https://github.com/NLnetLabs/domain.git", branch="message-for-slice", features = ["resolv", "unstable-client-transport"]}
 tokio    = { version = "1.33", features = ["rt-multi-thread"] }
 
 

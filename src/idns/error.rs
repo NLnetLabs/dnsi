@@ -1,6 +1,6 @@
 //! Error handling.
 
-use std::fmt;
+use std::{fmt, io};
 
 
 //------------ Error ---------------------------------------------------------
@@ -18,6 +18,12 @@ impl<'a> From<&'a str> for Error {
 impl From<String> for Error {
     fn from(message: String) -> Self {
         Self { message }
+    }
+}
+
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Self {
+        Self { message: err.to_string() }
     }
 }
 
