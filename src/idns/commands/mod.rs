@@ -9,7 +9,7 @@ use super::error::Error;
 #[derive(Clone, Debug, clap::Subcommand)]
 pub enum Commands {
     /// Query the DNS.
-    Query(self::query::Args),
+    Query(self::query::Query),
 }
 
 impl Commands {

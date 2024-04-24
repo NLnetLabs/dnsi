@@ -2,6 +2,7 @@
 
 use std::io;
 use domain::base::Message;
+use domain::base::iana::Rtype;
 use domain::base::opt::AllOptData;
 use domain::rdata::AllRecordData;
 
@@ -24,7 +25,9 @@ pub fn write(
         counts.qdcount(), counts.ancount(), counts.nscount(), counts.arcount()
     )?;
 
-    if let Some(opt) = msg.opt() {
+    let opt = msg.opt(); // We need it further down ...
+
+    if let Some(opt) = opt.as_ref() {
         writeln!(target, "\n;; OPT PSEUDOSECTION:")?;
         writeln!(target,
             "; EDNS: version {}; flags: {}; udp: {}",
@@ -91,7 +94,7 @@ pub fn write(
     }
     
     /* Answer */
-    let section = match questions.answer() {
+    let mut section = match questions.answer() {
         Ok(section) => section.limit_to::<AllRecordData<_, _>>(),
         Err(err) => {
             writeln!(target, "; ERROR: bad question: {}.", err)?;
@@ -100,7 +103,7 @@ pub fn write(
     };
     if counts.ancount() > 0 {
         writeln!(target, "\n;; ANSWER SECTION:")?;
-        for item in section {
+        while let Some(item) = section.next() {
             match item {
                 Ok(item) => writeln!(target, "{}", item)?,
                 Err(err) => {
@@ -112,8 +115,8 @@ pub fn write(
     }
 
     // Authority
-    let section = match questions.next_section() {
-        Ok(section) => section.limit_to::<AllRecordData<_, _>>(),
+    let mut section = match section.next_section() {
+        Ok(section) => section.unwrap().limit_to::<AllRecordData<_, _>>(),
         Err(err) => {
             writeln!(target, "; ERROR: bad record: {}.", err)?;
             return Ok(())
@@ -121,7 +124,7 @@ pub fn write(
     };
     if counts.nscount() > 0 {
         writeln!(target, "\n;; AUTHORITY SECTION:")?;
-        for item in section {
+        while let Some(item) = section.next() {
             match item {
                 Ok(item) => writeln!(target, "{}", item)?,
                 Err(err) => {
@@ -133,18 +136,22 @@ pub fn write(
     }
 
     // Additional
-    let section = match questions.next_section() {
-        Ok(section) => section.limit_to::<AllRecordData<_, _>>(),
+    let section = match section.next_section() {
+        Ok(section) => section.unwrap().limit_to::<AllRecordData<_, _>>(),
         Err(err) => {
             writeln!(target, "; ERROR: bad record: {}.", err)?;
             return Ok(())
         }
     };
-    if counts.arcount() > 0 {
+    if counts.arcount() > 1 || (opt.is_none() && counts.arcount() > 0) {
         writeln!(target, "\n;; ADDITIONAL SECTION:")?;
         for item in section {
             match item {
-                Ok(item) => writeln!(target, "{}", item)?,
+                Ok(item) => {
+                    if item.rtype() != Rtype::OPT {
+                        writeln!(target, "{}", item)?
+                    }
+                }
                 Err(err) => {
                     writeln!(target, "; Error: bad record: {}.", err)?;
                     return Ok(())

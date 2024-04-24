@@ -1,29 +1,37 @@
 //! Error handling.
 
 use std::{fmt, io};
+use std::borrow::Cow;
+use domain::base::wire::ParseError;
 
 
 //------------ Error ---------------------------------------------------------
 
 pub struct Error {
-    message: String,
+    message: Cow<'static, str>,
 }
 
-impl<'a> From<&'a str> for Error {
-    fn from(message: &'a str) -> Self {
-        Self { message: message.into() }
+impl From<&'static str> for Error {
+    fn from(message: &'static str) -> Self {
+        Self { message: Cow::Borrowed(message) }
     }
 }
 
 impl From<String> for Error {
     fn from(message: String) -> Self {
-        Self { message }
+        Self { message: Cow::Owned(message) }
     }
 }
 
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
-        Self { message: err.to_string() }
+        Self::from(err.to_string())
+    }
+}
+
+impl From<ParseError> for Error {
+    fn from(_err: ParseError) -> Self {
+        Self::from("message parse error")
     }
 }
 

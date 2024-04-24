@@ -8,17 +8,19 @@ use bytes::Bytes;
 use domain::base::iana::Rtype;
 use domain::base::message::Message;
 use domain::base::message_builder::MessageBuilder;
-use domain::base::name::{Name, UncertainName};
+use domain::base::name::{Name, ToName, UncertainName};
 use domain::net::client;
 use domain::net::client::request::{RequestMessage, SendRequest};
+use domain::rdata::{AllRecordData, Ns, Soa};
 use domain::resolv::StubResolver;
-use domain::resolv::stub::conf::ResolvConf;
+use domain::resolv::stub;
+use domain::resolv::stub::conf::{ResolvConf, ServerConf, Transport};
 use crate::idns::error::Error;
 use crate::idns::output::OutputFormat;
 
 
 #[derive(Clone, Debug, clap::Args)]
-pub struct Args {
+pub struct Query {
     /// The name of the resource records to look up
     #[arg(value_name="QUERY_NAME")]
     qname: Name<Vec<u8>>,
@@ -71,12 +73,18 @@ pub struct Args {
     #[arg(long)]
     udp_payload_size: Option<u16>,
 
+    /// Verify the answer against an authoritative server.
+    #[arg(long)]
+    verify: bool,
+
     /// Select the output format.
     #[arg(long = "format", default_value = "dig")]
     output_format: OutputFormat,
 }
 
-impl Args {
+/// # Executing the command
+///
+impl Query {
     pub fn execute(self) -> Result<(), Error> {
         if !self.force {
             if self.qtype == Rtype::AXFR || self.qtype == Rtype::IXFR {
@@ -104,9 +112,27 @@ impl Args {
         let request = self.create_request();
         let answer = self.send_and_receive(servers, request).await?;
         self.output_format.print(answer.for_slice_ref())?;
+        if self.verify {
+            let auth_answer = self.auth_answer().await?;
+            if Self::eq_answer(
+                answer.for_slice_ref(), auth_answer.for_slice_ref()
+            ) {
+                println!("\n;; Authoritative answer matches.");
+            }
+            else {
+                println!("\n;; Authoritative answer does not match.");
+                println!(";; AUTHORITATIVE ANSWER");
+                self.output_format.print(auth_answer.for_slice_ref())?;
+            }
+        }
         Ok(())
     }
+}
 
+
+/// # Resolving the server set
+///
+impl Query {
     /// Resolves a provided server name.
     async fn host_server(
         &self, server: &UncertainName<Vec<u8>>
@@ -144,7 +170,11 @@ impl Args {
         }
         res.into_iter().collect()
     }
+}
 
+/// # Handling the actual query
+///
+impl Query {
     /// Creates a new request message.
     fn create_request(&self) -> RequestMessage<Vec<u8>> {
         let mut res = MessageBuilder::new_vec();
@@ -210,7 +240,11 @@ impl Args {
             })
         }
     }
+}
 
+/// # Server configurations
+///
+impl Query {
     fn timeout(&self) -> Option<Duration> {
         self.timeout.map(Duration::from_secs_f32)
     }
@@ -245,6 +279,135 @@ impl Args {
         client::dgram_stream::Config::from_parts(
             self.dgram_config(), self.multi_stream_config()
         )
+    }
+}
+
+/// # Get an authoritative answer
+impl Query {
+    async fn auth_answer(&self) -> Result<stub::Answer, Error> {
+        let addrs = {
+            let resolver = StubResolver::new();
+            let apex = self.get_apex(&resolver).await?;
+            let ns_set = self.get_ns_set(&apex, &resolver).await?;
+            self.get_ns_addrs(&ns_set, &resolver).await?
+        };
+
+        let resolver = StubResolver::from_conf(
+            ResolvConf {
+                servers: addrs.into_iter().map(|addr| {
+                    ServerConf::new(
+                        SocketAddr::new(addr, 53), Transport::UdpTcp
+                    )
+                }).collect(),
+                options: Default::default(),
+            }
+        );
+        
+        resolver.query((&self.qname, self.qtype)).await.map_err(Into::into)
+    }
+
+    /// Tries to determine the apex of the zone the requested records live in.
+    async fn get_apex(
+        &self, resolv: &StubResolver
+    ) -> Result<Name<Vec<u8>>, Error> {
+        // Ask for the SOA record for the qname.
+        let response = resolv.query((&self.qname, Rtype::SOA)).await?;
+        
+        // The SOA record is in the answer section if the qname is the apex
+        // or in the authority section with the apex as the owner name
+        // otherwise.
+        let mut answer = response.answer()?.limit_to_in::<Soa<_>>();
+        while let Some(soa) = answer.next() {
+            let soa = soa?;
+            if *soa.owner() == self.qname {
+                return Ok(self.qname.clone())
+            }
+            else {
+                // Strange SOA in the answer section, let’s continue with
+                // the authority section.
+                break;
+            }
+        }
+
+        let mut authority = answer.next_section()?.unwrap()
+            .limit_to_in::<Soa<_>>();
+        while let Some(soa) = authority.next() {
+            let soa = soa?;
+            return Ok(soa.owner().to_name())
+        }
+
+        Err("no SOA record".into())
+    }
+
+    /// Tries to find the NS set for the given apex name.
+    async fn get_ns_set(
+        &self, apex: &Name<Vec<u8>>, resolv: &StubResolver
+    ) -> Result<Vec<Name<Vec<u8>>>, Error> {
+        let response = resolv.query((apex, Rtype::NS)).await?;
+        let mut res = Vec::new();
+        for record in response.answer()?.limit_to_in::<Ns<_>>() {
+            let record = record?;
+            if *record.owner() != apex {
+                continue;
+            }
+            res.push(record.data().nsdname().to_name());
+        }
+
+        // We could technically get the A and AAAA records from the additional
+        // section, but we’re going to ask anyway, so: meh.
+
+        Ok(res)
+    }
+
+    /// Tries to get all the addresses for all the name servers.
+    async fn get_ns_addrs(
+        &self, ns_set: &[Name<Vec<u8>>], resolv: &StubResolver
+    ) -> Result<Vec<IpAddr>, Error> {
+        let mut res = HashSet::new();
+        for ns in ns_set {
+            for addr in resolv.lookup_host(ns).await?.iter() {
+                res.insert(addr);
+            }
+        }
+        Ok(res.into_iter().collect())
+    }
+
+    /// Compares the answer section of two messages.
+    fn eq_answer(left: Message<&[u8]>, right: Message<&[u8]>) -> bool {
+        if left.header_counts().ancount() != right.header_counts().ancount() {
+            return false
+        }
+        let left = match left.answer() {
+            Ok(answer) => {
+                answer.into_records::<AllRecordData<_, _>>().map(|record| {
+                    match record {
+                        Ok(record) => {
+                            let class = record.class();
+                            let (name, data) = record.into_owner_and_data();
+                            Some((name, class, data))
+                        }
+                        Err(_) => None,
+                    }
+                }).collect::<HashSet<_>>()
+            }
+            Err(_) => return false,
+        };
+        let right = match right.answer() {
+            Ok(answer) => {
+                answer.into_records::<AllRecordData<_, _>>().map(|record| {
+                    match record {
+                        Ok(record) => {
+                            let class = record.class();
+                            let (name, data) = record.into_owner_and_data();
+                            Some((name, class, data))
+                        }
+                        Err(_) => None,
+                    }
+                }).collect::<HashSet<_>>()
+            }
+            Err(_) => return false,
+        };
+        left == right
     }
 }
 
