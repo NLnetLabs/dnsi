@@ -2,7 +2,7 @@
 name = "domain-tools"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.65.0"
+rust-version = "1.74.0"
 
 [dependencies]
 bytes    = "1"
