@@ -103,7 +103,7 @@ pub fn write(
     };
     if counts.ancount() > 0 {
         writeln!(target, "\n;; ANSWER SECTION:")?;
-        while let Some(item) = section.next() {
+        for item in section.by_ref() {
             match item {
                 Ok(item) => writeln!(target, "{}", item)?,
                 Err(err) => {
@@ -124,7 +124,7 @@ pub fn write(
     };
     if counts.nscount() > 0 {
         writeln!(target, "\n;; AUTHORITY SECTION:")?;
-        while let Some(item) = section.next() {
+        for item in section.by_ref() {
             match item {
                 Ok(item) => writeln!(target, "{}", item)?,
                 Err(err) => {

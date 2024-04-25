@@ -86,6 +86,7 @@ pub struct Query {
 ///
 impl Query {
     pub fn execute(self) -> Result<(), Error> {
+        #[allow(clippy::collapsible_if)] // There may be more later ...
         if !self.force {
             if self.qtype == Rtype::AXFR || self.qtype == Rtype::IXFR {
                 return Err(
@@ -317,21 +318,18 @@ impl Query {
         // or in the authority section with the apex as the owner name
         // otherwise.
         let mut answer = response.answer()?.limit_to_in::<Soa<_>>();
-        while let Some(soa) = answer.next() {
+        if let Some(soa) = answer.next() {
             let soa = soa?;
             if *soa.owner() == self.qname {
                 return Ok(self.qname.clone())
             }
-            else {
-                // Strange SOA in the answer section, let’s continue with
-                // the authority section.
-                break;
-            }
+            // Strange SOA in the answer section, let’s continue with
+            // the authority section.
         }
 
         let mut authority = answer.next_section()?.unwrap()
             .limit_to_in::<Soa<_>>();
-        while let Some(soa) = authority.next() {
+        if let Some(soa) = authority.next() {
             let soa = soa?;
             return Ok(soa.owner().to_name())
         }
