@@ -11,6 +11,7 @@ use domain::base::iana::{Class, Rtype};
 use domain::base::message::Message;
 use domain::base::message_builder::MessageBuilder;
 use domain::base::name::{Name, ParsedName, ToName, UncertainName};
+use domain::base::rdata::RecordData;
 use domain::net::client::{dgram, stream};
 use domain::net::client::request::RequestMessage;
 use domain::rdata::{AllRecordData, Ns, Soa};
@@ -385,7 +386,10 @@ impl Query {
     /// Prints the content of a diff.
     fn output_diff(&self, diff: Vec<DiffItem>) {
         for item in diff {
-            println!("{}{} {} {}", item.0, item.1.0, item.1.1, item.1.2);
+            println!(
+                "{}{} {} {} {}",
+                item.0, item.1.0, item.1.1, item.1.2.rtype(), item.1.2
+            );
         }
     }
 }
