@@ -185,6 +185,10 @@ impl Answer {
         self.stats
     }
 
+    pub fn message(&self) -> &Message<Bytes> {
+        &self.message
+    }
+
     pub fn msg_slice(&self) -> Message<&[u8]> {
         self.message.for_slice_ref()
     }

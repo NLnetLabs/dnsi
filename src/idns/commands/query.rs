@@ -1,15 +1,16 @@
 //! The query command of _idns._
 #![allow(unused_imports)]
 
+use std::fmt;
 use std::collections::HashSet;
 use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
 use std::time::Duration;
 use bytes::Bytes;
-use domain::base::iana::Rtype;
+use domain::base::iana::{Class, Rtype};
 use domain::base::message::Message;
 use domain::base::message_builder::MessageBuilder;
-use domain::base::name::{Name, ToName, UncertainName};
+use domain::base::name::{Name, ParsedName, ToName, UncertainName};
 use domain::net::client::{dgram, stream};
 use domain::net::client::request::RequestMessage;
 use domain::rdata::{AllRecordData, Ns, Soa};
@@ -117,18 +118,37 @@ impl Query {
         self.output_format.print(&answer)?;
         if self.verify {
             let auth_answer = self.auth_answer().await?;
-            if Self::eq_answer(
-                answer.msg_slice(), auth_answer.msg_slice()
-            ) {
-                println!("\n;; Authoritative answer matches.");
+            if let Some(diff) = Self::diff_answers(
+                auth_answer.message(), answer.message()
+            )? {
+                println!("\n;; Authoritative ANSWER does not match.");
+                println!(
+                    ";; Difference of ANSWER with authoritative server {}:",
+                    auth_answer.stats().server_addr
+                );
+                self.output_diff(diff);
             }
             else {
-                println!("\n;; Authoritative answer does not match.");
-                println!(";; AUTHORITATIVE ANSWER");
-                self.output_format.print(&auth_answer)?;
+                println!("\n;; Authoritative ANSWER matches.");
             }
         }
         Ok(())
+    }
+}
+
+/// # Configuration
+///
+impl Query {
+    fn timeout(&self) -> Duration {
+        Duration::from_secs_f32(self.timeout.unwrap_or(5.))
+    }
+
+    fn retries(&self) -> u8 {
+        self.retries.unwrap_or(2)
+    }
+
+    fn udp_payload_size(&self) -> u16 {
+        self.udp_payload_size.unwrap_or(1232)
     }
 }
 
@@ -205,7 +225,7 @@ impl Query {
     }
 }
 
-/// # Handling the actual query
+/// # Create the actual query
 ///
 impl Query {
     /// Creates a new request message.
@@ -224,60 +244,6 @@ impl Query {
         res.push((&self.qname, self.qtype)).unwrap();
 
         RequestMessage::new(res)
-    }
-
-/*
-    /// Sends the request and returns a response.
-    async fn send_and_receive(
-        &self,
-        mut server: Vec<SocketAddr>,
-        request: RequestMessage<Vec<u8>>
-    ) -> Result<(Message<Bytes>, client::Stats), Error> {
-        while let Some(addr) = server.pop() {
-            match self.send_and_receive_single(addr, request.clone()).await {
-                Ok(answer) => return Ok(answer),
-                Err(err) => {
-                    if server.is_empty() {
-                        return Err(err)
-                    }
-                }
-            }
-        }
-        unreachable!()
-    }
-
-    /// Sends the request to exactly one server and returns the response.
-    async fn send_and_receive_single(
-        &self,
-        server: SocketAddr,
-        request: RequestMessage<Vec<u8>>
-    ) -> Result<(Message<Bytes>, client::Stats), Error> {
-        if !self.tcp {
-            let (response, stats) = udp(
-                request.clone(), server, self.dgram_config()
-            ).await?;
-            if !response.header().tc() {
-                return Ok((response, stats))
-            }
-        }
-        tcp(request, server, self.stream_config()).await
-    }
-*/
-}
-
-/// # Configurations
-///
-impl Query {
-    fn timeout(&self) -> Duration {
-        Duration::from_secs_f32(self.timeout.unwrap_or(5.))
-    }
-
-    fn retries(&self) -> u8 {
-        self.retries.unwrap_or(2)
-    }
-
-    fn udp_payload_size(&self) -> u16 {
-        self.udp_payload_size.unwrap_or(1232)
     }
 }
 
@@ -366,42 +332,61 @@ impl Query {
         )
     }
 
-    /// Compares the answer section of two messages.
-    fn eq_answer(left: Message<&[u8]>, right: Message<&[u8]>) -> bool {
-        if left.header_counts().ancount() != right.header_counts().ancount() {
-            return false
+    /// Produces a diff between two answer sections.
+    ///
+    /// Returns `Ok(None)` if the two answer sections are identical apart from
+    /// the TTLs.
+    #[allow(clippy::mutable_key_type)]
+    fn diff_answers(
+        left: &Message<Bytes>, right: &Message<Bytes>
+    ) -> Result<Option<Vec<DiffItem>>, Error> {
+        // Put all the answers into a two hashsets.
+        let left = left.answer()?.into_records::<AllRecordData<_, _>>(
+        ).filter_map(
+            Result::ok
+        ).map(|record| {
+            let class = record.class();
+            let (name, data) = record.into_owner_and_data();
+            (name, class, data)
+        }).collect::<HashSet<_>>();
+
+        let right = right.answer()?.into_records::<AllRecordData<_, _>>(
+        ).filter_map(
+            Result::ok
+        ).map(|record| {
+            let class = record.class();
+            let (name, data) = record.into_owner_and_data();
+            (name, class, data)
+        }).collect::<HashSet<_>>();
+
+        let mut diff = left.intersection(&right).cloned().map(|item| {
+            (Action::Unchanged, item)
+        }).collect::<Vec<_>>();
+        let size = diff.len();
+
+        diff.extend(left.difference(&right).cloned().map(|item| {
+            (Action::Removed, item)
+        }));
+
+        diff.extend(right.difference(&left).cloned().map(|item| {
+            (Action::Added, item)
+        }));
+
+        diff.sort_by(|left, right| left.1.cmp(&right.1));
+
+        if size == diff.len() {
+            Ok(None)
         }
-        let left = match left.answer() {
-            Ok(answer) => {
-                answer.into_records::<AllRecordData<_, _>>().map(|record| {
-                    match record {
-                        Ok(record) => {
-                            let class = record.class();
-                            let (name, data) = record.into_owner_and_data();
-                            Some((name, class, data))
-                        }
-                        Err(_) => None,
-                    }
-                }).collect::<HashSet<_>>()
-            }
-            Err(_) => return false,
-        };
-        let right = match right.answer() {
-            Ok(answer) => {
-                answer.into_records::<AllRecordData<_, _>>().map(|record| {
-                    match record {
-                        Ok(record) => {
-                            let class = record.class();
-                            let (name, data) = record.into_owner_and_data();
-                            Some((name, class, data))
-                        }
-                        Err(_) => None,
-                    }
-                }).collect::<HashSet<_>>()
-            }
-            Err(_) => return false,
-        };
-        left == right
+        else {
+            Ok(Some(diff))
+        }
+    }
+
+    /// Prints the content of a diff.
+    fn output_diff(&self, diff: Vec<DiffItem>) {
+        for item in diff {
+            println!("{}{} {} {}", item.0, item.1.0, item.1.1, item.1.2);
+        }
     }
 }
 
@@ -429,3 +414,36 @@ impl FromStr for ServerName {
     }
 }
 
+
+//------------ Action --------------------------------------------------------
+
+#[derive(Clone, Copy, Debug)]
+enum Action {
+    Added,
+    Removed,
+    Unchanged,
+}
+
+impl fmt::Display for Action {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(
+            match *self {
+                Self::Added => "+ ",
+                Self::Removed => "- ",
+                Self::Unchanged => "  ",
+            }
+        )
+    }
+}
+
+
+//----------- DiffItem -------------------------------------------------------
+
+type DiffItem = (
+    Action,
+    (
+        ParsedName<Bytes>,
+        Class,
+        AllRecordData<Bytes, ParsedName<Bytes>>
+    )
+);
