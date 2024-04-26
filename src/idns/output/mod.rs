@@ -5,7 +5,7 @@ mod dig;
 
 use std::io;
 use clap::ValueEnum;
-use domain::base::Message;
+use crate::idns::client::Answer;
 
 //------------ OutputFormat --------------------------------------------------
 
@@ -17,7 +17,7 @@ pub enum OutputFormat {
 
 impl OutputFormat {
     pub fn write(
-        self, msg: Message<&[u8]>, target: &mut impl io::Write
+        self, msg: &Answer, target: &mut impl io::Write
     ) -> Result<(), io::Error> {
         match self {
             Self::Dig => self::dig::write(msg, target)
@@ -25,7 +25,7 @@ impl OutputFormat {
     }
 
     pub fn print(
-        self, msg: Message<&[u8]>
+        self, msg: &Answer,
     ) -> Result<(), io::Error> {
         self.write(msg, &mut io::stdout().lock())
     }

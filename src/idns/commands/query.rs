@@ -1,4 +1,5 @@
 //! The query command of _idns._
+#![allow(unused_imports)]
 
 use std::collections::HashSet;
 use std::net::{IpAddr, SocketAddr};
@@ -9,12 +10,14 @@ use domain::base::iana::Rtype;
 use domain::base::message::Message;
 use domain::base::message_builder::MessageBuilder;
 use domain::base::name::{Name, ToName, UncertainName};
-use domain::net::client;
-use domain::net::client::request::{RequestMessage, SendRequest};
+use domain::net::client::{dgram, stream};
+use domain::net::client::request::RequestMessage;
 use domain::rdata::{AllRecordData, Ns, Soa};
-use domain::resolv::StubResolver;
-use domain::resolv::stub;
-use domain::resolv::stub::conf::{ResolvConf, ServerConf, Transport};
+use domain::resolv::Resolver;
+use domain::resolv::lookup::{lookup_host, search_host};
+use domain::resolv::stub::StubResolver;
+use domain::resolv::stub::conf::ResolvConf;
+use crate::idns::client::{Answer, Client, Server, Transport};
 use crate::idns::error::Error;
 use crate::idns::output::OutputFormat;
 
@@ -49,18 +52,6 @@ pub struct Query {
     #[arg(short, long)]
     tcp: bool,
 
-    /// Use the given message ID. Random if missing.
-    #[arg(long)]
-    id: Option<u16>,
-
-    /// Unset the RD flag in the request.
-    #[arg(long)]
-    no_rd: bool,
-
-    /// Disable all sanity checks.
-    #[arg(long, short = 'f')]
-    force: bool,
-
     /// Set the timeout for a query.
     #[arg(long, value_name="SECONDS")]
     timeout: Option<f32>,
@@ -72,6 +63,18 @@ pub struct Query {
     /// Set the advertised UDP payload size.
     #[arg(long)]
     udp_payload_size: Option<u16>,
+
+    /// Use the given message ID. Random if missing.
+    #[arg(long)]
+    id: Option<u16>,
+
+    /// Unset the RD flag in the request.
+    #[arg(long)]
+    no_rd: bool,
+
+    /// Disable all sanity checks.
+    #[arg(long, short = 'f')]
+    force: bool,
 
     /// Verify the answer against an authoritative server.
     #[arg(long)]
@@ -104,26 +107,25 @@ impl Query {
     }
 
     pub async fn async_execute(self) -> Result<(), Error> {
-        let servers = match self.server {
+        let client = match self.server {
             Some(ServerName::Name(ref host)) => self.host_server(host).await?,
             Some(ServerName::Addr(addr)) => self.addr_server(addr),
-            None => self.default_server(),
+            None => self.system_server(),
         };
 
-        let request = self.create_request();
-        let answer = self.send_and_receive(servers, request).await?;
-        self.output_format.print(answer.for_slice_ref())?;
+        let answer = client.request(self.create_request()).await?;
+        self.output_format.print(&answer)?;
         if self.verify {
             let auth_answer = self.auth_answer().await?;
             if Self::eq_answer(
-                answer.for_slice_ref(), auth_answer.for_slice_ref()
+                answer.msg_slice(), auth_answer.msg_slice()
             ) {
                 println!("\n;; Authoritative answer matches.");
             }
             else {
                 println!("\n;; Authoritative answer does not match.");
                 println!(";; AUTHORITATIVE ANSWER");
-                self.output_format.print(auth_answer.for_slice_ref())?;
+                self.output_format.print(&auth_answer)?;
             }
         }
         Ok(())
@@ -136,9 +138,9 @@ impl Query {
 impl Query {
     /// Resolves a provided server name.
     async fn host_server(
-        &self, server: &UncertainName<Vec<u8>>
-    ) -> Result<Vec<SocketAddr>, Error> {
-        let resolver = StubResolver::new();
+        &self, server: &UncertainName<Vec<u8>>,
+    ) -> Result<Client, Error> {
+        let resolver = StubResolver::default();
         let answer = match server {
             UncertainName::Absolute(name) => {
                 resolver.lookup_host(name).await
@@ -148,28 +150,58 @@ impl Query {
             }
         }.map_err(|err| err.to_string())?;
 
-        let mut res = Vec::new();
+        let mut servers = Vec::new();
         for addr in answer.iter() {
             if (addr.is_ipv4() && self.ipv6) || (addr.is_ipv6() && self.ipv4) {
                 continue
             }
-            res.push(SocketAddr::new(addr, self.port.unwrap_or(53)));
+            servers.push(Server {
+                addr: SocketAddr::new(addr, self.port.unwrap_or(53)),
+                transport: self.transport(),
+                timeout: self.timeout(),
+                retries: self.retries.unwrap_or(2),
+                udp_payload_size: self.udp_payload_size.unwrap_or(1232),
+            });
         }
-        Ok(res)
+        Ok(Client::with_servers(servers))
     }
 
     /// Resolves a provided server name.
-    fn addr_server(&self, addr: IpAddr) -> Vec<SocketAddr> {
-        vec![SocketAddr::new(addr, self.port.unwrap_or(53))]
+    fn addr_server(&self, addr: IpAddr) -> Client {
+        Client::with_servers(vec![
+            Server {
+                addr: SocketAddr::new(addr, self.port.unwrap_or(53)),
+                transport: self.transport(),
+                timeout: self.timeout(),
+                retries: self.retries(),
+                udp_payload_size: self.udp_payload_size()
+            }
+        ])
     }
 
-    /// Create the default server configuration.
-    fn default_server(&self) -> Vec<SocketAddr> {
-        let mut res = HashSet::new();
-        for server in ResolvConf::default().servers {
-            res.insert(server.addr);
+    /// Creates a client based on the system defaults.
+    fn system_server(&self) -> Client {
+        let conf = ResolvConf::default();
+        Client::with_servers(
+            conf.servers.iter().map(|server| {
+                Server {
+                    addr: server.addr,
+                    transport: self.transport(),
+                    timeout: server.request_timeout,
+                    retries: u8::try_from(conf.options.attempts).unwrap_or(2),
+                    udp_payload_size: server.udp_payload_size,
+                }
+            }).collect()
+        )
+    }
+
+    fn transport(&self) -> Transport {
+        if self.tcp {
+            Transport::Tcp
         }
-        res.into_iter().collect()
+        else {
+            Transport::UdpTcp
+        }
     }
 }
 
@@ -194,12 +226,13 @@ impl Query {
         RequestMessage::new(res)
     }
 
+/*
     /// Sends the request and returns a response.
     async fn send_and_receive(
         &self,
         mut server: Vec<SocketAddr>,
         request: RequestMessage<Vec<u8>>
-    ) -> Result<Message<Bytes>, Error> {
+    ) -> Result<(Message<Bytes>, client::Stats), Error> {
         while let Some(addr) = server.pop() {
             match self.send_and_receive_single(addr, request.clone()).await {
                 Ok(answer) => return Ok(answer),
@@ -218,93 +251,46 @@ impl Query {
         &self,
         server: SocketAddr,
         request: RequestMessage<Vec<u8>>
-    ) -> Result<Message<Bytes>, Error> {
-        let tcp_connect = client::protocol::TcpConnect::new(server);
-        if self.tcp {
-            let (conn, tran) = client::multi_stream::Connection::with_config(
-                tcp_connect,
-                self.multi_stream_config(),
-            );
-            tokio::spawn(tran.run());
-            conn.send_request(request).get_response().await.map_err(|err| {
-                err.to_string().into()
-            })
+    ) -> Result<(Message<Bytes>, client::Stats), Error> {
+        if !self.tcp {
+            let (response, stats) = udp(
+                request.clone(), server, self.dgram_config()
+            ).await?;
+            if !response.header().tc() {
+                return Ok((response, stats))
+            }
         }
-        else {
-            let udp_connect = client::protocol::UdpConnect::new(server);
-            let (conn, tran) = client::dgram_stream::Connection::with_config(
-                udp_connect, tcp_connect, self.dgram_stream_config(),
-            );
-            tokio::spawn(tran.run());
-            conn.send_request(request).get_response().await.map_err(|err| {
-                err.to_string().into()
-            })
-        }
+        tcp(request, server, self.stream_config()).await
     }
+*/
 }
 
-/// # Server configurations
+/// # Configurations
 ///
 impl Query {
-    fn timeout(&self) -> Option<Duration> {
-        self.timeout.map(Duration::from_secs_f32)
+    fn timeout(&self) -> Duration {
+        Duration::from_secs_f32(self.timeout.unwrap_or(5.))
     }
 
-    fn dgram_config(&self) -> client::dgram::Config {
-        let mut res = client::dgram::Config::new();
-        if let Some(timeout) = self.timeout() {
-            res.set_read_timeout(timeout);
-        }
-        if let Some(retries) = self.retries {
-            res.set_max_retries(retries)
-        }
-        if let Some(size) = self.udp_payload_size {
-            res.set_udp_payload_size(Some(size))
-        }
-        res
+    fn retries(&self) -> u8 {
+        self.retries.unwrap_or(2)
     }
 
-    fn stream_config(&self) -> client::stream::Config {
-        let mut res = client::stream::Config::new();
-        if let Some(timeout) = self.timeout() {
-            res.set_response_timeout(timeout);
-        }
-        res
-    }
-
-    fn multi_stream_config(&self) -> client::multi_stream::Config {
-        client::multi_stream::Config::from(self.stream_config())
-    }
-
-    fn dgram_stream_config(&self) -> client::dgram_stream::Config {
-        client::dgram_stream::Config::from_parts(
-            self.dgram_config(), self.multi_stream_config()
-        )
+    fn udp_payload_size(&self) -> u16 {
+        self.udp_payload_size.unwrap_or(1232)
     }
 }
 
 /// # Get an authoritative answer
 impl Query {
-    async fn auth_answer(&self) -> Result<stub::Answer, Error> {
-        let addrs = {
+    async fn auth_answer(&self) -> Result<Answer, Error> {
+        let servers = {
             let resolver = StubResolver::new();
             let apex = self.get_apex(&resolver).await?;
             let ns_set = self.get_ns_set(&apex, &resolver).await?;
             self.get_ns_addrs(&ns_set, &resolver).await?
         };
-
-        let resolver = StubResolver::from_conf(
-            ResolvConf {
-                servers: addrs.into_iter().map(|addr| {
-                    ServerConf::new(
-                        SocketAddr::new(addr, 53), Transport::UdpTcp
-                    )
-                }).collect(),
-                options: Default::default(),
-            }
-        );
-        
-        resolver.query((&self.qname, self.qtype)).await.map_err(Into::into)
+        Client::with_servers(servers).query((&self.qname, self.qtype)).await
     }
 
     /// Tries to determine the apex of the zone the requested records live in.
@@ -360,14 +346,24 @@ impl Query {
     /// Tries to get all the addresses for all the name servers.
     async fn get_ns_addrs(
         &self, ns_set: &[Name<Vec<u8>>], resolv: &StubResolver
-    ) -> Result<Vec<IpAddr>, Error> {
+    ) -> Result<Vec<Server>, Error> {
         let mut res = HashSet::new();
         for ns in ns_set {
             for addr in resolv.lookup_host(ns).await?.iter() {
                 res.insert(addr);
             }
         }
-        Ok(res.into_iter().collect())
+        Ok(
+            res.into_iter().map(|addr| {
+                Server {
+                    addr: SocketAddr::new(addr, 53),
+                    transport: Transport::UdpTcp,
+                    timeout: self.timeout(),
+                    retries: self.retries(),
+                    udp_payload_size: self.udp_payload_size(),
+                }
+            }).collect()
+        )
     }
 
     /// Compares the answer section of two messages.

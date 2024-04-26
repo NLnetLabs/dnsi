@@ -1,16 +1,18 @@
 //! An output format compatible with dig.
 
 use std::io;
-use domain::base::Message;
 use domain::base::iana::Rtype;
 use domain::base::opt::AllOptData;
 use domain::rdata::AllRecordData;
+use crate::idns::client::Answer;
 
 //------------ write ---------------------------------------------------------
 
 pub fn write(
-    msg: Message<&[u8]>, target: &mut impl io::Write
+    answer: &Answer, target: &mut impl io::Write
 ) -> Result<(), io::Error> {
+    let msg = answer.msg_slice();
+
     // Header
     let header = msg.header();
     let counts = msg.header_counts();
@@ -159,6 +161,17 @@ pub fn write(
             }
         }
     }
+
+    // Stats
+    let stats = answer.stats();
+    writeln!(target, "\n;; Query time: {} msec", stats.duration.as_millis())?;
+    writeln!(target,
+        ";; SERVER: {}#{} ({})",
+        stats.server_addr.ip(), stats.server_addr.port(),
+        stats.server_proto
+    )?;
+    //writeln!(target, ";; WHEN: {}", stats.start)?;
+    writeln!(target, ";; MSG SIZE  rcvd: {}", msg.as_slice().len())?;
 
     Ok(())
 }
