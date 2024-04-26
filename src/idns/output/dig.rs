@@ -23,7 +23,7 @@ pub fn write(
     )?;
     write!(target, ";; flags: {}", header.flags())?;
     writeln!(target,
-        "; QUERY: {}, ANSWER: {}, AUTHORITY: {}, ADDITIONAL: {}\n",
+        "; QUERY: {}, ANSWER: {}, AUTHORITY: {}, ADDITIONAL: {}",
         counts.qdcount(), counts.ancount(), counts.nscount(), counts.arcount()
     )?;
 
