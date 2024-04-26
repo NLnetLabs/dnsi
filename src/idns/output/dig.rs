@@ -164,13 +164,19 @@ pub fn write(
 
     // Stats
     let stats = answer.stats();
-    writeln!(target, "\n;; Query time: {} msec", stats.duration.as_millis())?;
+    writeln!(target,
+        "\n;; Query time: {} msec",
+        stats.duration.num_milliseconds()
+    )?;
     writeln!(target,
         ";; SERVER: {}#{} ({})",
         stats.server_addr.ip(), stats.server_addr.port(),
         stats.server_proto
     )?;
-    //writeln!(target, ";; WHEN: {}", stats.start)?;
+    writeln!(target,
+        ";; WHEN: {}",
+        stats.start.format("%a %b %d %H:%M:%S %Z %Y")
+    )?;
     writeln!(target, ";; MSG SIZE  rcvd: {}", msg.as_slice().len())?;
 
     Ok(())

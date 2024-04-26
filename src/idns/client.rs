@@ -2,8 +2,9 @@
 
 use std::fmt;
 use std::net::SocketAddr;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 use bytes::Bytes;
+use chrono::{DateTime, Local, TimeDelta};
 use domain::base::message::Message;
 use domain::base::message_builder::MessageBuilder;
 use domain::base::name::ToName;
@@ -200,8 +201,8 @@ impl AsRef<Message<Bytes>> for Answer {
 
 #[derive(Clone, Copy, Debug)]
 pub struct Stats {
-    pub start: SystemTime,
-    pub duration: Duration,
+    pub start: DateTime<Local>,
+    pub duration: TimeDelta,
     pub server_addr: SocketAddr,
     pub server_proto: Protocol,
 }
@@ -209,7 +210,7 @@ pub struct Stats {
 impl Stats {
     fn new(server_addr: SocketAddr, server_proto: Protocol) -> Self {
         Stats {
-            start: SystemTime::now(),
+            start: Local::now(),
             duration: Default::default(),
             server_addr,
             server_proto,
@@ -217,7 +218,7 @@ impl Stats {
     }
 
     fn finalize(&mut  self) {
-        self.duration = self.start.elapsed().unwrap_or_default();
+        self.duration = Local::now() - self.start;
     }
 }
 
