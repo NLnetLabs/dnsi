@@ -17,7 +17,7 @@ pub struct Help {
 
 impl Help {
     pub fn execute(self) -> Result<(), Error> {
-        let page = match self.command.as_ref().map(String::as_str) {
+        let page = match self.command.as_deref() {
             None => Self::IDNS_1,
             Some("query") => Self::IDNS_QUERY_1,
             Some(command) => {
