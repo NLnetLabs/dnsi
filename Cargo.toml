@@ -9,6 +9,7 @@ bytes    = "1"
 clap     = { version = "4", features = ["derive", "unstable-doc"] }
 chrono   = { version = "0.4.38", features = [ "alloc", "clock" ] }
 domain   = { git="https://github.com/NLnetLabs/domain.git", branch="message-for-slice", features = ["resolv", "unstable-client-transport"]}
+tempfile = "3.1.0"
 tokio    = { version = "1.33", features = ["rt-multi-thread"] }
 
 
