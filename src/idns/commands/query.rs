@@ -70,10 +70,6 @@ pub struct Query {
     #[arg(long)]
     udp_payload_size: Option<u16>,
 
-    /// Use the given message ID. Random if missing.
-    #[arg(long)]
-    id: Option<u16>,
-
     /// Unset the RD flag in the request.
     #[arg(long)]
     no_rd: bool,
@@ -241,12 +237,6 @@ impl Query {
         let mut res = MessageBuilder::new_vec();
 
         res.header_mut().set_rd(!self.no_rd);
-        if let Some(id) = self.id {
-            res.header_mut().set_id(id)
-        }
-        else {
-            res.header_mut().set_random_id();
-        }
 
         let mut res = res.question();
         res.push((&self.qname, self.qtype)).unwrap();
