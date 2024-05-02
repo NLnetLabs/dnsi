@@ -93,7 +93,10 @@ impl Query {
         if !self.force {
             if self.qtype == Rtype::AXFR || self.qtype == Rtype::IXFR {
                 return Err(
-                    "Please use the 'xfr' command for zone transfer.\n\
+                    "AXFR and IXFR query types invoke zone transfer which \
+                     may result in a sequence of responses but only the
+                     first is shown by the 'query' command.\n\
+                     Please use the 'xfr' command for zone transfer.\n\
                      (Use --force to query anyway.)".into()
                 );
             }
