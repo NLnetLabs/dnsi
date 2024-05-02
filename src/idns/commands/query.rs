@@ -1,5 +1,4 @@
 //! The query command of _idns._
-#![allow(unused_imports)]
 
 use std::fmt;
 use std::collections::HashSet;
@@ -12,17 +11,16 @@ use domain::base::message::Message;
 use domain::base::message_builder::MessageBuilder;
 use domain::base::name::{Name, ParsedName, ToName, UncertainName};
 use domain::base::rdata::RecordData;
-use domain::net::client::{dgram, stream};
 use domain::net::client::request::RequestMessage;
 use domain::rdata::{AllRecordData, Ns, Soa};
-use domain::resolv::Resolver;
-use domain::resolv::lookup::{lookup_host, search_host};
 use domain::resolv::stub::StubResolver;
 use domain::resolv::stub::conf::ResolvConf;
 use crate::idns::client::{Answer, Client, Server, Transport};
 use crate::idns::error::Error;
 use crate::idns::output::OutputFormat;
 
+
+//------------ Query ---------------------------------------------------------
 
 #[derive(Clone, Debug, clap::Args)]
 pub struct Query {
