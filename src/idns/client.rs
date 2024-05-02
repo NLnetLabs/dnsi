@@ -82,6 +82,7 @@ impl Client {
         &self, request: RequestMessage<Vec<u8>>, server: &Server,
     ) -> Result<Answer, Error> {
         match server.transport {
+            Transport::Udp => self.request_udp(request, server).await,
             Transport::UdpTcp => self.request_udptcp(request, server).await,
             Transport::Tcp => self.request_tcp(request, server).await,
         }
@@ -158,6 +159,7 @@ pub struct Server {
 
 #[derive(Clone, Copy, Debug)]
 pub enum Transport {
+    Udp,
     UdpTcp,
     Tcp,
 }

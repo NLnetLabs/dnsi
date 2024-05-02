@@ -54,6 +54,10 @@ pub struct Query {
     #[arg(short, long)]
     tcp: bool,
 
+    /// Use only UDP.
+    #[arg(short, long)]
+    udp: bool,
+
     /// Set the timeout for a query.
     #[arg(long, value_name="SECONDS")]
     timeout: Option<f32>,
@@ -217,7 +221,10 @@ impl Query {
     }
 
     fn transport(&self) -> Transport {
-        if self.tcp {
+        if self.udp {
+            Transport::Udp
+        }
+        else if self.tcp {
             Transport::Tcp
         }
         else {
