@@ -1,0 +1,30 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  test:
+    name: test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macOS-latest]
+        rust: [1.74.0, stable, beta, nightly]
+    env:
+        RUSTFLAGS: "-D warnings"
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v1
+    - name: Install Rust
+      uses: hecrj/setup-rust-action@v1
+      with:
+        rust-version: ${{ matrix.rust }}
+    - if: matrix.rust == 'stable'
+      run: rustup component add clippy
+    - if: matrix.rust == 'stable'
+      run: cargo clippy --all-features --all-targets -- -D warnings
+    - run: cargo check --no-default-features --all-targets
+    - run: cargo test --all-features
+    - if: matrix.rust == 'nightly'
+      run: |
+        cargo +nightly update -Z minimal-versions
+        cargo check --all-features --all-targets
+      name: Check with minimal-versions

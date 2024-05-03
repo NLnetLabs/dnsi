@@ -1,0 +1,167 @@
+.TH "dnsi-query" "1" "NLnet Labs"
+
+.SH NAME
+dnsi-query - Send a query to a name server
+
+.SH SYNOPSIS
+.B dnsi query
+[\fIoptions\fR]
+.I query_name
+[\fIquery_type\fR]
+
+.SH DESCRIPTION
+The
+.B dnsi query
+command sends a DNS query to a name server and prints out the response. The
+server can either be selected or the resolver configured in the system will
+be used.
+
+The query will be for the domain name given by
+.IR query_name .
+If
+.I query_type
+is given, it provides the record type to be queried for. If it is missing,
+the record type
+.B A
+is used.
+
+A specific name server and port can be selected through the
+.B --server
+and
+.B --port
+options. If the latter is missing, the default port is used. If no server
+is given, the system’s default servers configured in
+.I /etc/resolv.conf
+are tried in order and the first received response is printed.
+
+If neither the
+.B --tcp
+or
+.B --udp
+options are given, the query is first sent over UDP. If a response is
+received but it indicates that it had to be truncated to fit, it is repeated
+over TCP. If one of the options is given, then only this transport
+protocol is used. In particular, if
+.B --udp
+is given, a truncated answer is accepted and printed.
+
+The output format can be selected through the
+.B --format
+option. If it is missing, output similar to that of
+.BR dig (1)
+is used.
+
+.SH OPTIONS
+.TP
+.B -s\fR \fIaddr_or_host\fR, \fB--server\fR \fIaddr_or_host
+Specifies the name server to send the query to. If present, the query will be
+sent to the server given. If a host name is used, the name is resolved using
+the system resolver and the query is sent to the resulting addresses and the
+first received response is printed.
+
+If this option is missing,
+is given, the system’s default servers configured in
+.I /etc/resolv.conf
+are tried in order and the first received response is printed.
+
+.TP
+.B --p\fR \fIport\fR, \fB--port\fR \fIport
+Specifies the port to use when connecting to the name server. If missing, the
+default port will be used. This is 53 for UDP and TCP.
+
+.TP
+.BR -4 ,\  --ipv4
+Indicates that only IPv4 should be used.
+
+.TP
+.BR -6 ,\  --ipv6
+Indicates that only IPv4 should be used.
+
+.TP
+.BR -t ,\  --tcp
+Specifies that only TCP should be used. 
+
+.TP
+.BR -u ,\  --udp
+Specifies that only UDP should be used and the resulting answer be printed
+even if it had to be truncated.
+
+.TP
+.BI --timeout \ seconds
+Sets the time after sending a query before a server is considered
+non-responsive if an answer is not received.
+
+The
+.I
+seconds
+value can be given with decimal fractions, e.g., 0.2.
+
+.TP
+.BI --retries \ number
+The number of times a query is retried over UDP after timing out before a
+server is considered non-responsive. This value is ignored for transport
+protocols other than UDP.
+
+.TP
+.BI --udp-payload-size \ bytes
+Sets the accepted UDP payload size announced in the query to server. If this
+option is missing, the default size of 1232 bytes is used. The value is
+ignored for transport protocols other than UDP.
+
+.TP
+.B --no-rd
+Specifies that the "recursion desired" flag, or RD flag for short, should
+not be set in the query. If this option is missing, the flag will be set.
+
+The flag indicates to a resolver that it should try and gather all necessary
+information from their authoritative name servers to create a complete answer
+to the query. This process is called "recursion."
+
+.TP
+.BR -f ,\  --force
+Requests that no sanity checks are done and the query is to be sent as
+specified.
+
+Normally,
+.B dnsi query
+will refuse to do zone transfer queries with query type AXFR or IXFR
+because they require special processing. With this option, you can force
+it to send these queries, anyway.
+
+.TP
+.B --verify
+Requests to compare the received response to the response provided
+by one of the authoritative name servers.
+
+If the resource records in the
+answer section differ, a diff between them is provided. Records that appear
+in the answer section of the received response only are prefixed with a plus,
+records that appard in the answer section of the authoritative response are
+prefixed with a minus.
+
+The records in the authority and additional sections are not compared.
+
+This option is intended for zones that provide the same answer on all servers
+and only one authoritative response is acquired and considered. If the zone's
+name servers provided differing answers, re-running the command thus may
+result in different output.
+
+.TP
+.BI --format \ format
+Selects the data format in which the response should be printed. The
+following formats are currently supported:
+.RS
+.TP
+.B dig
+The response and some additional information are printed in a format
+similar to what
+.BR dig (1)
+produces.
+
+This is currently the default format if the option is missing.
+.RE
+
+.TP
+.BR -h ,\  --help
+Prints some help information.
+
