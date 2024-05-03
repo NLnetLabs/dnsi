@@ -1,4 +1,4 @@
-//! The query command of _idns._
+//! The query command of _dnsi._
 
 use std::fmt;
 use std::collections::HashSet;
@@ -15,9 +15,9 @@ use domain::net::client::request::RequestMessage;
 use domain::rdata::{AllRecordData, Ns, Soa};
 use domain::resolv::stub::StubResolver;
 use domain::resolv::stub::conf::ResolvConf;
-use crate::idns::client::{Answer, Client, Server, Transport};
-use crate::idns::error::Error;
-use crate::idns::output::OutputFormat;
+use crate::dnsi::client::{Answer, Client, Server, Transport};
+use crate::dnsi::error::Error;
+use crate::dnsi::output::OutputFormat;
 
 
 //------------ Query ---------------------------------------------------------

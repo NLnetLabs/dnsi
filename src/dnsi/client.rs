@@ -1,4 +1,4 @@
-//! The DNS client for _idns._
+//! The DNS client for _dnsi._
 
 use std::fmt;
 use std::net::SocketAddr;
@@ -14,12 +14,12 @@ use domain::net::client::protocol::UdpConnect;
 use domain::net::client::request::{RequestMessage, SendRequest};
 use domain::resolv::stub::conf;
 use tokio::net::TcpStream;
-use crate::idns::error::Error;
+use crate::dnsi::error::Error;
 
 
 //------------ Client --------------------------------------------------------
 
-/// The DNS client used by _idns._
+/// The DNS client used by _dnsi._
 #[derive(Clone, Debug)]
 pub struct Client {
     servers: Vec<Server>,

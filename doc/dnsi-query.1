@@ -1,17 +1,17 @@
-.TH "idns-query" "1" "NLnet Labs"
+.TH "dnsi-query" "1" "NLnet Labs"
 
 .SH NAME
-idns-query - Send a query to a name server
+dnsi-query - Send a query to a name server
 
 .SH SYNOPSIS
-.B idns query
+.B dnsi query
 [\fIoptions\fR]
 .I query_name
 [\fIquery_type\fR]
 
 .SH DESCRIPTION
 The
-.B idns query
+.B dnsi query
 command sends a DNS query to a name server and prints out the response. The
 server can either be selected or the resolver configured in the system will
 be used.
@@ -123,7 +123,7 @@ Requests that no sanity checks are done and the query is to be sent as
 specified.
 
 Normally,
-.B idns query
+.B dnsi query
 will refuse to do zone transfer queries with query type AXFR or IXFR
 because they require special processing. With this option, you can force
 it to send these queries, anyway.

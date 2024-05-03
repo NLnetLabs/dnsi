@@ -1,10 +1,10 @@
-//! The _idns_ binary.
+//! The _dnsi_ binary.
 
 use clap::Parser;
-use domain_tools::idns;
+use domain_tools::dnsi;
 
 fn main() {
-    if let Err(err) = idns::Args::parse().execute() {
+    if let Err(err) = dnsi::Args::parse().execute() {
         eprintln!("{}", err);
     }
 }

@@ -1,9 +1,9 @@
-//! The help command of _idns._
+//! The help command of _dnsi._
 
 use std::io::Write;
 use std::process::Command;
 use tempfile::NamedTempFile;
-use crate::idns::error::Error;
+use crate::dnsi::error::Error;
 
 
 //------------ Help ----------------------------------------------------------
@@ -47,9 +47,9 @@ impl Help {
 }
 
 impl Help {
-    const IDNS_1: &'static [u8] = include_bytes!("../../../doc/idns.1");
+    const IDNS_1: &'static [u8] = include_bytes!("../../../doc/dnsi.1");
     const IDNS_QUERY_1: &'static [u8] = include_bytes!(
-        "../../../doc/idns-query.1"
+        "../../../doc/dnsi-query.1"
     );
 }
 

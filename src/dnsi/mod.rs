@@ -1,4 +1,4 @@
-//! The actual implementation of _idns._
+//! The actual implementation of _dnsi._
 
 pub use self::args::Args;
 

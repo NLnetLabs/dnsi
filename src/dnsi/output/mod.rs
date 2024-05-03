@@ -5,7 +5,7 @@ mod dig;
 
 use std::io;
 use clap::ValueEnum;
-use crate::idns::client::Answer;
+use super::client::Answer;
 
 //------------ OutputFormat --------------------------------------------------
 
