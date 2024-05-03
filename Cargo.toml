@@ -1,5 +1,5 @@
 [package]
-name = "domain-tools"
+name = "dnsi"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.74.0"

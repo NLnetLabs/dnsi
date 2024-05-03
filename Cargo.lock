@@ -271,6 +271,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "dnsi"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "chrono",
+ "clap",
+ "domain",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "domain"
 version = "0.10.0-dev"
 source = "git+https://github.com/NLnetLabs/domain.git?branch=message-for-slice#b78477b815df89d9341384f9ee6f339feb9f384c"
@@ -286,18 +298,6 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tracing",
-]
-
-[[package]]
-name = "domain-tools"
-version = "0.1.0"
-dependencies = [
- "bytes",
- "chrono",
- "clap",
- "domain",
- "tempfile",
- "tokio",
 ]
 
 [[package]]

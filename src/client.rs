@@ -14,7 +14,7 @@ use domain::net::client::protocol::UdpConnect;
 use domain::net::client::request::{RequestMessage, SendRequest};
 use domain::resolv::stub::conf;
 use tokio::net::TcpStream;
-use crate::dnsi::error::Error;
+use crate::error::Error;
 
 
 //------------ Client --------------------------------------------------------

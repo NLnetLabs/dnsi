@@ -3,7 +3,7 @@
 use std::io::Write;
 use std::process::Command;
 use tempfile::NamedTempFile;
-use crate::dnsi::error::Error;
+use crate::error::Error;
 
 
 //------------ Help ----------------------------------------------------------
@@ -47,9 +47,9 @@ impl Help {
 }
 
 impl Help {
-    const IDNS_1: &'static [u8] = include_bytes!("../../../doc/dnsi.1");
+    const IDNS_1: &'static [u8] = include_bytes!("../../doc/dnsi.1");
     const IDNS_QUERY_1: &'static [u8] = include_bytes!(
-        "../../../doc/dnsi-query.1"
+        "../../doc/dnsi-query.1"
     );
 }
 

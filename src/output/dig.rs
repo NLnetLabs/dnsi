@@ -4,7 +4,7 @@ use std::io;
 use domain::base::iana::Rtype;
 use domain::base::opt::AllOptData;
 use domain::rdata::AllRecordData;
-use crate::dnsi::client::Answer;
+use crate::client::Answer;
 
 //------------ write ---------------------------------------------------------
 

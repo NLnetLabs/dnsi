@@ -15,9 +15,9 @@ use domain::net::client::request::RequestMessage;
 use domain::rdata::{AllRecordData, Ns, Soa};
 use domain::resolv::stub::StubResolver;
 use domain::resolv::stub::conf::ResolvConf;
-use crate::dnsi::client::{Answer, Client, Server, Transport};
-use crate::dnsi::error::Error;
-use crate::dnsi::output::OutputFormat;
+use crate::client::{Answer, Client, Server, Transport};
+use crate::error::Error;
+use crate::output::OutputFormat;
 
 
 //------------ Query ---------------------------------------------------------
