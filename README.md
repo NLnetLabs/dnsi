@@ -33,7 +33,7 @@ Debian versions:
 -  Debian Bullseye 11
 -  Debian Buster 10
 
-Packages for the `amd64`/`x86_64` architecture are available for
+Packages for the `amd64` and  `x86_64` architectures are available for
 all listed versions. In addition, we offer `armhf` architecture
 packages for Debian/Raspbian Bullseye, and `arm64` for Buster.
 
