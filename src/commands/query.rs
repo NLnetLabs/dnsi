@@ -29,7 +29,7 @@ pub struct Query {
     qname: Name<Vec<u8>>,
 
     /// The record type to look up
-    #[arg(value_name="QUERY_TYPE", default_value = "A")]
+    #[arg(value_name="QUERY_TYPE", default_value = "AAAA")]
     qtype: Rtype,
 
     /// The server to send the query to. System servers used if missing
