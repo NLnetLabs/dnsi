@@ -133,7 +133,7 @@ sudo apt install dnsi
 
 ### RHEL and compatible systems
 
-To install a `dnsi` package, you need Red Hat Enterprise Linux (RHEL) 7,
+To install the `dnsi` package, you need Red Hat Enterprise Linux (RHEL) 7,
 8 or 9, or compatible operating system such as Rocky Linux. Packages are
 available for the `amd64`/`x86_64` architecture only.
 
