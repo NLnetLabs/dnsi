@@ -26,7 +26,7 @@ section to get started.
 
 ### Debian
 
-To install a `dnsi` package, you need the 64-bit version of one of these
+To install the `dnsi` package, you need the 64-bit version of one of these
 Debian versions:
 
 -  Debian Bookworm 12
