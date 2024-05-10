@@ -190,7 +190,7 @@ After successfully installing Rust, installing `dnsi` is as simple as
 entering:
 
 ``` bash
-cargo install dnsi
+cargo install --locked dnsi
 ```
 
 If you want to update to the latest version of `dnsi`, it’s recommended
