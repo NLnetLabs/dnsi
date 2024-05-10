@@ -208,7 +208,7 @@ cargo install --locked --force dnsi
 ```
 
 If you want to install a specific version of `dnsi` using Cargo, explicitly
-use the ``--version`` option. If needed, use the ``--force`` option to
+use the `--version` option. If needed, use the `--force` option to
 overwrite an existing version:
         
 ``` bash
