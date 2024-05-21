@@ -1,6 +1,7 @@
 //! Message output formats.
 
 mod dig;
+mod human;
 
 
 use std::io;
@@ -12,7 +13,9 @@ use super::client::Answer;
 #[derive(Clone, Copy, Debug, ValueEnum)]
 pub enum OutputFormat {
     /// Similar to dig.
-    Dig
+    Dig,
+    /// Easily readable, formatted with ANSI codes and whitespace
+    Human,
 }
 
 impl OutputFormat {
@@ -20,7 +23,8 @@ impl OutputFormat {
         self, msg: &Answer, target: &mut impl io::Write
     ) -> Result<(), io::Error> {
         match self {
-            Self::Dig => self::dig::write(msg, target)
+            Self::Dig => self::dig::write(msg, target),
+            Self::Human => self::human::write(msg, target),
         }
     }
 
