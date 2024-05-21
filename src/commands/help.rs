@@ -18,8 +18,8 @@ pub struct Help {
 impl Help {
     pub fn execute(self) -> Result<(), Error> {
         let page = match self.command.as_deref() {
-            None => Self::IDNS_1,
-            Some("query") => Self::IDNS_QUERY_1,
+            None => Self::DNSI_1,
+            Some("query") => Self::DNSI_QUERY_1,
             Some(command) => {
                 return Err(format!("Unknown command '{}'.", command).into());
             }
@@ -47,8 +47,8 @@ impl Help {
 }
 
 impl Help {
-    const IDNS_1: &'static [u8] = include_bytes!("../../doc/dnsi.1");
-    const IDNS_QUERY_1: &'static [u8] = include_bytes!(
+    const DNSI_1: &'static [u8] = include_bytes!("../../doc/dnsi.1");
+    const DNSI_QUERY_1: &'static [u8] = include_bytes!(
         "../../doc/dnsi-query.1"
     );
 }

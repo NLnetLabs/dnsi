@@ -1,4 +1,4 @@
-//! The various commands of _idsn._
+//! The various commands of _idns._
 
 pub mod help;
 pub mod query;
