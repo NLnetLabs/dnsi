@@ -6,10 +6,14 @@ use domain::base::opt::AllOptData;
 use domain::rdata::AllRecordData;
 use crate::client::Answer;
 
+use super::OutputOptions;
+
 //------------ write ---------------------------------------------------------
 
 pub fn write(
-    answer: &Answer, target: &mut impl io::Write
+    answer: &Answer,
+    target: &mut impl io::Write,
+    _options: &OutputOptions,
 ) -> Result<(), io::Error> {
     let msg = answer.msg_slice();
 

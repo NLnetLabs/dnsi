@@ -3,10 +3,9 @@
 mod dig;
 mod human;
 
-
-use std::io;
-use clap::ValueEnum;
 use super::client::Answer;
+use clap::{Parser, ValueEnum};
+use std::io;
 
 //------------ OutputFormat --------------------------------------------------
 
@@ -18,20 +17,28 @@ pub enum OutputFormat {
     Human,
 }
 
+#[derive(Clone, Debug, Parser)]
+pub struct OutputOptions {
+    #[arg(long = "format", default_value = "dig")]
+    pub format: OutputFormat,
+    #[arg(short, long)]
+    pub long: bool,
+}
+
 impl OutputFormat {
     pub fn write(
-        self, msg: &Answer, target: &mut impl io::Write
+        self,
+        msg: &Answer,
+        target: &mut impl io::Write,
+        options: &OutputOptions,
     ) -> Result<(), io::Error> {
         match self {
-            Self::Dig => self::dig::write(msg, target),
-            Self::Human => self::human::write(msg, target),
+            Self::Dig => self::dig::write(msg, target, options),
+            Self::Human => self::human::write(msg, target, options),
         }
     }
 
-    pub fn print(
-        self, msg: &Answer,
-    ) -> Result<(), io::Error> {
-        self.write(msg, &mut io::stdout().lock())
+    pub fn print(self, msg: &Answer, options: &OutputOptions) -> Result<(), io::Error> {
+        self.write(msg, &mut io::stdout().lock(), options)
     }
 }
-
