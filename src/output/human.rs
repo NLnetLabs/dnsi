@@ -66,8 +66,17 @@ fn write_internal(
 
     // If the long option is not passed, we only show the answer section
     if !options.long {
-        let mut answers = msg.question().answer()?.limit_to::<AllRecordData<_, _>>();
-        write_answers(target, &mut answers, false)?;
+        let section = msg.question().answer()?.limit_to::<AllRecordData<_, _>>();
+        if counts.ancount() > 0 {
+            write_answers(target, section, false)?;
+        } else if counts.nscount() > 0 {
+            let section = section
+                .next_section()?
+                .unwrap()
+                .limit_to::<AllRecordData<_, _>>();
+            write_answers(target, section, false)?;
+        }
+
         return Ok(());
     }
 
