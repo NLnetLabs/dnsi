@@ -12,13 +12,9 @@ use domain::{
 use std::io;
 
 use crate::client::Answer;
+use super::{BOLD, RESET};
 
-use super::OutputOptions;
-
-static BOLD: &str = "\x1B[1m";
-static UNDERLINE: &str = "\x1B[4m";
-static ITALIC: &str = "\x1B[3m";
-static RESET: &str = "\x1B[m";
+use super::table::write_table;
 
 type Rec<'a> = Record<ParsedName<&'a [u8]>, AllRecordData<&'a [u8], ParsedName<&'a [u8]>>>;
 
@@ -39,12 +35,8 @@ impl From<ParseError> for FormatError {
     }
 }
 
-pub fn write(
-    answer: &Answer,
-    target: &mut impl io::Write,
-    options: &OutputOptions,
-) -> io::Result<()> {
-    match write_internal(answer, target, options) {
+pub fn write(answer: &Answer, target: &mut impl io::Write) -> io::Result<()> {
+    match write_internal(answer, target) {
         Ok(()) => Ok(()),
         Err(FormatError::Io(e)) => Err(e),
         Err(FormatError::BadRecord(e)) => {
@@ -54,31 +46,11 @@ pub fn write(
     }
 }
 
-fn write_internal(
-    answer: &Answer,
-    target: &mut impl io::Write,
-    options: &OutputOptions,
-) -> Result<(), FormatError> {
+fn write_internal(answer: &Answer, target: &mut impl io::Write) -> Result<(), FormatError> {
     let msg = answer.msg_slice();
 
     let header = msg.header();
     let counts = msg.header_counts();
-
-    // If the long option is not passed, we only show the answer section
-    if !options.long {
-        let section = msg.question().answer()?.limit_to::<AllRecordData<_, _>>();
-        if counts.ancount() > 0 {
-            write_answers(target, section, false)?;
-        } else if counts.nscount() > 0 {
-            let section = section
-                .next_section()?
-                .unwrap()
-                .limit_to::<AllRecordData<_, _>>();
-            write_answers(target, section, false)?;
-        }
-
-        return Ok(());
-    }
 
     write_header(target, header, counts)?;
 
@@ -292,44 +264,5 @@ fn write_stats(
         ],
     ];
     write_table(target, None, "  ", "  ", &stats)?;
-    Ok(())
-}
-
-fn write_table<const N: usize>(
-    target: &mut impl io::Write,
-    header: Option<[&'static str; N]>,
-    indent: &'static str,
-    spacing: &'static str,
-    rows: &[[String; N]],
-) -> io::Result<()> {
-    let mut widths = [0; N];
-
-    if let Some(header) = header {
-        for i in 0..N {
-            widths[i] = header[i].len();
-        }
-    }
-    for row in rows {
-        for i in 0..N {
-            widths[i] = widths[i].max(row[i].len());
-        }
-    }
-
-    if let Some(header) = header {
-        write!(target, "{indent}{UNDERLINE}{ITALIC}")?;
-        for i in 0..(N - 1) {
-            write!(target, "{:<width$}{spacing}", header[i], width = widths[i])?;
-        }
-        write!(target, "{:<width$}", header[N - 1], width = widths[N - 1])?;
-        writeln!(target, "{RESET}")?;
-    }
-    for row in rows {
-        write!(target, "{indent}")?;
-        for i in 0..(N - 1) {
-            write!(target, "{:<width$}{spacing}", row[i], width = widths[i])?;
-        }
-        write!(target, "{:<width$}", row[N - 1], width = widths[N - 1])?;
-        writeln!(target)?;
-    }
     Ok(())
 }

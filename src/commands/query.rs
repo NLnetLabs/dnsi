@@ -17,7 +17,7 @@ use domain::resolv::stub::StubResolver;
 use domain::resolv::stub::conf::ResolvConf;
 use crate::client::{Answer, Client, Server, Transport};
 use crate::error::Error;
-use crate::output::OutputOptions;
+use crate::output::OutputFormat;
 
 
 //------------ Query ---------------------------------------------------------
@@ -80,8 +80,9 @@ pub struct Query {
     #[arg(long)]
     verify: bool,
 
-    #[command(flatten)]
-    output_options: OutputOptions,
+    /// Select the output format.
+    #[arg(long = "format", default_value = "dig")]
+    output_format: OutputFormat,
 }
 
 /// # Executing the command
@@ -117,8 +118,7 @@ impl Query {
         };
 
         let answer = client.request(self.create_request()).await?;
-        let format = self.output_options.format;
-        format.print(&answer, &self.output_options)?;
+        self.output_format.print(&answer)?;
         if self.verify {
             let auth_answer = self.auth_answer().await?;
             if let Some(diff) = Self::diff_answers(
