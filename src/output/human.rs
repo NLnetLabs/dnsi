@@ -68,7 +68,7 @@ fn write_internal(answer: &Answer, target: &mut impl io::Write) -> Result<(), Fo
 
     let mut section = questions.answer()?.limit_to::<AllRecordData<_, _>>();
     if counts.ancount() > 0 {
-        write_answers(target, &mut section, true)?;
+        write_answers(target, &mut section)?;
     }
 
     // Authority
@@ -78,7 +78,7 @@ fn write_internal(answer: &Answer, target: &mut impl io::Write) -> Result<(), Fo
         .limit_to::<AllRecordData<_, _>>();
     if counts.nscount() > 0 {
         writeln!(target, "\n{BOLD}AUTHORITY SECTION{RESET}")?;
-        write_answer_table(target, &mut section, true)?;
+        write_answer_table(target, &mut section)?;
     }
 
     // Additional
@@ -91,7 +91,6 @@ fn write_internal(answer: &Answer, target: &mut impl io::Write) -> Result<(), Fo
         write_answer_table(
             target,
             section.filter(|item| item.as_ref().map_or(true, |i| i.rtype() != Rtype::OPT)),
-            true,
         )?;
     }
 
@@ -201,18 +200,14 @@ fn write_question(
 fn write_answers<'a>(
     target: &mut impl io::Write,
     answers: impl Iterator<Item = Result<Rec<'a>, ParseError>>,
-    long: bool,
 ) -> Result<(), FormatError> {
-    if long {
-        writeln!(target, "\n{BOLD}ANSWER SECTION{RESET}")?;
-    }
-    write_answer_table(target, answers, long)
+    writeln!(target, "\n{BOLD}ANSWER SECTION{RESET}")?;
+    write_answer_table(target, answers)
 }
 
 fn write_answer_table<'a>(
     target: &mut impl io::Write,
     answers: impl Iterator<Item = Result<Rec<'a>, ParseError>>,
-    long: bool,
 ) -> Result<(), FormatError> {
     let answers = answers
         .map(|a| {
@@ -230,7 +225,7 @@ fn write_answer_table<'a>(
     write_table(
         target,
         Some(["Owner", "TTL", "Class", "Type", "Data"]),
-        if long { "  " } else { "" },
+        "  ",
         "    ",
         &answers,
     )?;
