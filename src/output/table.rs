@@ -79,55 +79,65 @@ fn write_internal(answer: &Answer, target: &mut impl io::Write) -> Result<(), Fo
         section = section2;
     }
 
-    write_table(
-        target,
-        Some(["Section", "Owner", "TTL", "Class", "Type", "Data"]),
-        "",
-        "    ",
-        &table_rows,
-    )?;
+    Table {
+        indent: "",
+        spacing: "    ",
+        header: Some(["Section", "Owner", "TTL", "Class", "Type", "Data"]),
+        rows: &table_rows,
+    }
+    .write(target)?;
 
     Ok(())
 }
 
-pub fn write_table<const N: usize>(
-    target: &mut impl io::Write,
-    header: Option<[&'static str; N]>,
-    indent: &'static str,
-    spacing: &'static str,
-    rows: &[[String; N]],
-) -> io::Result<()> {
-    let mut widths = [0; N];
+pub struct Table<'a, const N: usize> {
+    pub indent: &'a str,
+    pub spacing: &'a str,
+    pub header: Option<[&'a str; N]>,
+    pub rows: &'a [[String; N]],
+}
 
-    if let Some(header) = header {
-        for i in 0..N {
-            widths[i] = header[i].len();
+impl<const N: usize> Table<'_, N> {
+    pub fn write(&self, mut target: impl io::Write) -> io::Result<()> {
+        let Self {
+            indent,
+            spacing,
+            header,
+            rows,
+        } = self;
+
+        let mut widths = [0; N];
+
+        if let Some(header) = header {
+            for i in 0..N {
+                widths[i] = header[i].len();
+            }
         }
-    }
 
-    for row in rows {
-        for i in 0..N {
-            widths[i] = widths[i].max(row[i].len());
+        for row in *rows {
+            for i in 0..N {
+                widths[i] = widths[i].max(row[i].len());
+            }
         }
-    }
 
-    if let Some(header) = header {
-        write!(target, "{indent}{UNDERLINE}{ITALIC}")?;
-        for i in 0..(N - 1) {
-            write!(target, "{:<width$}{spacing}", header[i], width = widths[i])?;
+        if let Some(header) = self.header {
+            write!(target, "{indent}{UNDERLINE}{ITALIC}")?;
+            for i in 0..(N - 1) {
+                write!(target, "{:<width$}{spacing}", header[i], width = widths[i])?;
+            }
+            write!(target, "{:<width$}", header[N - 1], width = widths[N - 1])?;
+            writeln!(target, "{RESET}")?;
         }
-        write!(target, "{:<width$}", header[N - 1], width = widths[N - 1])?;
-        writeln!(target, "{RESET}")?;
-    }
 
-    for row in rows {
-        write!(target, "{indent}")?;
-        for i in 0..(N - 1) {
-            write!(target, "{:<width$}{spacing}", row[i], width = widths[i])?;
+        for row in *rows {
+            write!(target, "{indent}")?;
+            for i in 0..(N - 1) {
+                write!(target, "{:<width$}{spacing}", row[i], width = widths[i])?;
+            }
+            write!(target, "{:<width$}", row[N - 1], width = widths[N - 1])?;
+            writeln!(target)?;
         }
-        write!(target, "{:<width$}", row[N - 1], width = widths[N - 1])?;
-        writeln!(target)?;
-    }
 
-    Ok(())
+        Ok(())
+    }
 }

@@ -11,10 +11,10 @@ use domain::{
 };
 use std::io;
 
-use crate::client::Answer;
 use super::{BOLD, RESET};
+use crate::client::Answer;
 
-use super::table::write_table;
+use super::table::Table;
 
 type Rec<'a> = Record<ParsedName<&'a [u8]>, AllRecordData<&'a [u8], ParsedName<&'a [u8]>>>;
 
@@ -121,7 +121,15 @@ fn write_header(
             ),
         ],
     ];
-    write_table(target, None, "  ", "  ", &header_rows)?;
+
+    Table {
+        indent: "  ",
+        spacing: "  ",
+        header: None,
+        rows: &header_rows,
+    }
+    .write(target)?;
+
     Ok(())
 }
 
@@ -166,7 +174,14 @@ fn write_opt(target: &mut impl io::Write, opt: &OptRecord<&[u8]>) -> Result<(), 
         rows.push([name.to_string(), value]);
     }
 
-    write_table(target, None, "  ", "  ", &rows)?;
+    Table {
+        indent: "  ",
+        spacing: "  ",
+        header: None,
+        rows: &rows,
+    }
+    .write(target)?;
+
     Ok(())
 }
 
@@ -187,13 +202,13 @@ fn write_question(
         })
         .collect::<Result<Vec<_>, FormatError>>()?;
 
-    write_table(
-        target,
-        Some(["Name", "Type", "Class"]),
-        "  ",
-        "    ",
-        &questions,
-    )?;
+    Table {
+        indent: "",
+        spacing: "    ",
+        header: Some(["Name", "Type", "Class"]),
+        rows: &questions,
+    }
+    .write(target)?;
     Ok(())
 }
 
@@ -222,13 +237,13 @@ fn write_answer_table<'a>(
         })
         .collect::<Result<Vec<_>, FormatError>>()?;
 
-    write_table(
-        target,
-        Some(["Owner", "TTL", "Class", "Type", "Data"]),
-        "  ",
-        "    ",
-        &answers,
-    )?;
+    Table {
+        indent: "",
+        spacing: "    ",
+        header: Some(["Owner", "TTL", "Class", "Type", "Data"]),
+        rows: &answers,
+    }
+    .write(target)?;
     Ok(())
 }
 
@@ -258,6 +273,13 @@ fn write_stats(
             format!("{} bytes", msg.as_slice().len()),
         ],
     ];
-    write_table(target, None, "  ", "  ", &stats)?;
+
+    Table {
+        indent: "  ",
+        spacing: "  ",
+        header: None,
+        rows: &stats,
+    }
+    .write(target)?;
     Ok(())
 }
