@@ -11,10 +11,10 @@ use domain::{
 };
 use std::io;
 
-use super::{BOLD, RESET};
+use super::{format_ttl, BOLD, RESET};
 use crate::client::Answer;
 
-use super::table::Table;
+use super::table_writer::TableWriter;
 
 type Rec<'a> = Record<ParsedName<&'a [u8]>, AllRecordData<&'a [u8], ParsedName<&'a [u8]>>>;
 
@@ -122,11 +122,10 @@ fn write_header(
         ],
     ];
 
-    Table {
+    TableWriter {
         indent: "  ",
-        spacing: "  ",
-        header: None,
         rows: &header_rows,
+        ..Default::default()
     }
     .write(target)?;
 
@@ -174,11 +173,10 @@ fn write_opt(target: &mut impl io::Write, opt: &OptRecord<&[u8]>) -> Result<(), 
         rows.push([name.to_string(), value]);
     }
 
-    Table {
+    TableWriter {
         indent: "  ",
-        spacing: "  ",
-        header: None,
         rows: &rows,
+        ..Default::default()
     }
     .write(target)?;
 
@@ -202,11 +200,13 @@ fn write_question(
         })
         .collect::<Result<Vec<_>, FormatError>>()?;
 
-    Table {
-        indent: "",
+    TableWriter {
+        indent: "  ",
         spacing: "    ",
         header: Some(["Name", "Type", "Class"]),
         rows: &questions,
+        enabled_columns: [true, true, false],
+        ..Default::default()
     }
     .write(target)?;
     Ok(())
@@ -229,7 +229,7 @@ fn write_answer_table<'a>(
             let a = a?;
             Ok([
                 a.owner().to_string(),
-                a.ttl().as_secs().to_string(),
+                format_ttl(a.ttl()),
                 a.class().to_string(),
                 a.rtype().to_string(),
                 a.data().to_string(),
@@ -237,11 +237,14 @@ fn write_answer_table<'a>(
         })
         .collect::<Result<Vec<_>, FormatError>>()?;
 
-    Table {
-        indent: "",
+    TableWriter {
+        indent: "  ",
         spacing: "    ",
         header: Some(["Owner", "TTL", "Class", "Type", "Data"]),
         rows: &answers,
+        enabled_columns: [true, true, false, true, true],
+        right_aligned: [false, true, false, false, false],
+        ..Default::default()
     }
     .write(target)?;
     Ok(())
@@ -274,11 +277,10 @@ fn write_stats(
         ],
     ];
 
-    Table {
+    TableWriter {
         indent: "  ",
-        spacing: "  ",
-        header: None,
         rows: &stats,
+        ..Default::default()
     }
     .write(target)?;
     Ok(())

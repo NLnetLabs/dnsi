@@ -5,8 +5,7 @@ use domain::{
     rdata::AllRecordData,
 };
 
-use super::{ITALIC, RESET, UNDERLINE};
-use crate::client::Answer;
+use crate::{client::Answer, output::{format_ttl, table_writer::TableWriter}};
 
 enum FormatError {
     Io(io::Error),
@@ -54,7 +53,7 @@ fn write_internal(answer: &Answer, target: &mut impl io::Write) -> Result<(), Fo
             table_rows.push([
                 name.into(),
                 row.owner().to_string(),
-                row.ttl().as_secs().to_string(),
+                format_ttl(row.ttl()),
                 row.class().to_string(),
                 row.rtype().to_string(),
                 row.data().to_string(),
@@ -66,7 +65,7 @@ fn write_internal(answer: &Answer, target: &mut impl io::Write) -> Result<(), Fo
             table_rows.push([
                 String::new(),
                 row.owner().to_string(),
-                row.ttl().as_secs().to_string(),
+                format_ttl(row.ttl()),
                 row.class().to_string(),
                 row.rtype().to_string(),
                 row.data().to_string(),
@@ -79,65 +78,15 @@ fn write_internal(answer: &Answer, target: &mut impl io::Write) -> Result<(), Fo
         section = section2;
     }
 
-    Table {
-        indent: "",
+    TableWriter {
         spacing: "    ",
         header: Some(["Section", "Owner", "TTL", "Class", "Type", "Data"]),
         rows: &table_rows,
+        enabled_columns: [true, true, true, false, true, true],
+        right_aligned: [false, false, true, false, false, false],
+        ..Default::default()
     }
     .write(target)?;
 
     Ok(())
-}
-
-pub struct Table<'a, const N: usize> {
-    pub indent: &'a str,
-    pub spacing: &'a str,
-    pub header: Option<[&'a str; N]>,
-    pub rows: &'a [[String; N]],
-}
-
-impl<const N: usize> Table<'_, N> {
-    pub fn write(&self, mut target: impl io::Write) -> io::Result<()> {
-        let Self {
-            indent,
-            spacing,
-            header,
-            rows,
-        } = self;
-
-        let mut widths = [0; N];
-
-        if let Some(header) = header {
-            for i in 0..N {
-                widths[i] = header[i].len();
-            }
-        }
-
-        for row in *rows {
-            for i in 0..N {
-                widths[i] = widths[i].max(row[i].len());
-            }
-        }
-
-        if let Some(header) = self.header {
-            write!(target, "{indent}{UNDERLINE}{ITALIC}")?;
-            for i in 0..(N - 1) {
-                write!(target, "{:<width$}{spacing}", header[i], width = widths[i])?;
-            }
-            write!(target, "{:<width$}", header[N - 1], width = widths[N - 1])?;
-            writeln!(target, "{RESET}")?;
-        }
-
-        for row in *rows {
-            write!(target, "{indent}")?;
-            for i in 0..(N - 1) {
-                write!(target, "{:<width$}{spacing}", row[i], width = widths[i])?;
-            }
-            write!(target, "{:<width$}", row[N - 1], width = widths[N - 1])?;
-            writeln!(target)?;
-        }
-
-        Ok(())
-    }
 }
