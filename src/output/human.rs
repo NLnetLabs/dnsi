@@ -244,7 +244,6 @@ fn write_answer_table<'a>(
         rows: &answers,
         enabled_columns: [true, true, false, true, true],
         right_aligned: [false, true, false, false, false],
-        ..Default::default()
     }
     .write(target)?;
     Ok(())

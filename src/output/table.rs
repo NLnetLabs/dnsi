@@ -40,7 +40,7 @@ fn write_internal(answer: &Answer, target: &mut impl io::Write) -> Result<(), Fo
 
     let mut table_rows = Vec::new();
 
-    const SECTION_NAMES: [&'static str; 3] = ["ANSWER", "AUTHORITY", "ADDITIONAL"];
+    const SECTION_NAMES: [&str; 3] = ["ANSWER", "AUTHORITY", "ADDITIONAL"];
     let mut section = msg.question().answer()?;
 
     for name in SECTION_NAMES {
