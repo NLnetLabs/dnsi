@@ -1,7 +1,7 @@
 //! Message output formats.
 
 mod dig;
-
+mod json;
 
 use std::io;
 use clap::ValueEnum;
@@ -12,7 +12,8 @@ use super::client::Answer;
 #[derive(Clone, Copy, Debug, ValueEnum)]
 pub enum OutputFormat {
     /// Similar to dig.
-    Dig
+    Dig,
+    Json,
 }
 
 impl OutputFormat {
@@ -20,7 +21,8 @@ impl OutputFormat {
         self, msg: &Answer, target: &mut impl io::Write
     ) -> Result<(), io::Error> {
         match self {
-            Self::Dig => self::dig::write(msg, target)
+            Self::Dig => self::dig::write(msg, target),
+            Self::Json => self::json::write(msg, target),
         }
     }
 
