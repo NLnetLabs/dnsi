@@ -1,13 +1,13 @@
 //! Global configuration.
 
-use super::commands::Commands;
+use super::commands::Command;
 use super::error::Error;
 
 
 #[derive(Clone, Debug, clap::Parser)]
 pub struct Args {
     #[command(subcommand)]
-    command: Commands,
+    command: Command,
 }
 
 impl Args {
