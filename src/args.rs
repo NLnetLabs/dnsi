@@ -1,6 +1,6 @@
 //! Global configuration.
 
-use super::commands::Commands;
+use super::commands::Command;
 use super::error::Error;
 
 
@@ -8,7 +8,7 @@ use super::error::Error;
 #[command(disable_help_subcommand = true)]
 pub struct Args {
     #[command(subcommand)]
-    command: Commands,
+    command: Command,
 }
 
 impl Args {
