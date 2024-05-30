@@ -17,7 +17,7 @@ pub enum Commands {
     Lookup(self::lookup::Lookup),
 
     /// Show the manual pages.
-    Man(self::help::Help),
+    Help(self::help::Help),
 }
 
 impl Commands {
@@ -25,7 +25,7 @@ impl Commands {
         match self {
             Self::Query(query) => query.execute(),
             Self::Lookup(lookup) => lookup.execute(),
-            Self::Man(help) => help.execute(),
+            Self::Help(help) => help.execute(),
         }
     }
 }
