@@ -1,14 +1,10 @@
 //! An output format designed to be read by humans.
 
-use domain::{
-    base::{
-        iana::Rtype,
-        opt::{AllOptData, OptRecord},
-        wire::ParseError,
-        Header, HeaderCounts, Message, ParsedName, QuestionSection, Record,
-    },
-    rdata::AllRecordData,
-};
+use domain::base::iana::Rtype;
+use domain::base::opt::{AllOptData, OptRecord};
+use domain::base::wire::ParseError;
+use domain::base::{Header, HeaderCounts, Message, ParsedName, QuestionSection, Record};
+use domain::rdata::AllRecordData;
 use std::io;
 
 use super::{format_ttl, BOLD, RESET};
