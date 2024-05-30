@@ -2,6 +2,7 @@
 
 mod dig;
 mod json;
+mod rfc8427;
 
 use std::io;
 use clap::ValueEnum;
@@ -14,6 +15,8 @@ pub enum OutputFormat {
     /// Similar to dig.
     Dig,
     Json,
+    /// JSON based on RFC 8427
+    RFC8427,
 }
 
 impl OutputFormat {
@@ -23,6 +26,7 @@ impl OutputFormat {
         match self {
             Self::Dig => self::dig::write(msg, target),
             Self::Json => self::json::write(msg, target),
+            Self::RFC8427 => self::rfc8427::write(msg, target),
         }
     }
 
@@ -32,4 +36,3 @@ impl OutputFormat {
         self.write(msg, &mut io::stdout().lock())
     }
 }
-

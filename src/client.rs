@@ -14,6 +14,7 @@ use domain::net::client::protocol::UdpConnect;
 use domain::net::client::request::{RequestMessage, SendRequest};
 use domain::resolv::stub::conf;
 use tokio::net::TcpStream;
+use serde::{Serialize, Serializer};
 use crate::error::Error;
 
 
@@ -206,11 +207,18 @@ impl AsRef<Message<Bytes>> for Answer {
 //------------ Stats ---------------------------------------------------------
 
 #[derive(Clone, Copy, Debug)]
+#[derive(Serialize)]
 pub struct Stats {
     pub start: DateTime<Local>,
+    #[serde(serialize_with = "serialize_time_delta")]
     pub duration: TimeDelta,
     pub server_addr: SocketAddr,
     pub server_proto: Protocol,
+}
+
+fn serialize_time_delta<S>(t: &TimeDelta, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+    let msecs = t.num_milliseconds();
+    serializer.serialize_i64(msecs)
 }
 
 impl Stats {
@@ -231,7 +239,8 @@ impl Stats {
 
 //------------ Protocol ------------------------------------------------------
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum Protocol {
     Udp,
     Tcp,
