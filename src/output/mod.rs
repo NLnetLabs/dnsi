@@ -1,5 +1,6 @@
 //! Message output formats.
 
+mod ansi;
 mod dig;
 mod human;
 mod table;
@@ -10,13 +11,6 @@ use clap::{Parser, ValueEnum};
 use domain::base::Ttl;
 use std::fmt::Write as _;
 use std::io;
-
-//------------ ANSI codes ----------------------------------------------------
-
-static BOLD: &str = "\x1B[1m";
-static UNDERLINE: &str = "\x1B[4m";
-static ITALIC: &str = "\x1B[3m";
-static RESET: &str = "\x1B[m";
 
 //------------ OutputFormat --------------------------------------------------
 

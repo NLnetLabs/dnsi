@@ -1,6 +1,6 @@
 use std::io;
 
-use super::{ITALIC, RESET, UNDERLINE};
+use super::ansi::{ITALIC, RESET, UNDERLINE};
 
 pub struct TableWriter<'a, const N: usize> {
     pub indent: &'a str,

@@ -7,7 +7,8 @@ use domain::base::{Header, HeaderCounts, Message, ParsedName, QuestionSection, R
 use domain::rdata::AllRecordData;
 use std::io;
 
-use super::{format_ttl, BOLD, RESET};
+use super::ansi::{BOLD, RESET};
+use super::format_ttl;
 use crate::client::Answer;
 
 use super::table_writer::TableWriter;
