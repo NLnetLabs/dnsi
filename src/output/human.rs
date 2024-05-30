@@ -8,7 +8,7 @@ use domain::rdata::AllRecordData;
 use std::io;
 
 use super::ansi::{BOLD, RESET};
-use super::format_ttl;
+use super::ttl;
 use crate::client::Answer;
 
 use super::table_writer::TableWriter;
@@ -226,7 +226,7 @@ fn write_answer_table<'a>(
             let a = a?;
             Ok([
                 a.owner().to_string(),
-                format_ttl(a.ttl()),
+                ttl::format(a.ttl()),
                 a.class().to_string(),
                 a.rtype().to_string(),
                 a.data().to_string(),

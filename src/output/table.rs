@@ -5,7 +5,8 @@ use domain::{
     rdata::AllRecordData,
 };
 
-use crate::{client::Answer, output::{format_ttl, table_writer::TableWriter}};
+use super::ttl;
+use crate::{client::Answer, output::table_writer::TableWriter};
 
 enum FormatError {
     Io(io::Error),
@@ -53,7 +54,7 @@ fn write_internal(answer: &Answer, target: &mut impl io::Write) -> Result<(), Fo
             table_rows.push([
                 name.into(),
                 row.owner().to_string(),
-                format_ttl(row.ttl()),
+                ttl::format(row.ttl()),
                 row.class().to_string(),
                 row.rtype().to_string(),
                 row.data().to_string(),
@@ -65,7 +66,7 @@ fn write_internal(answer: &Answer, target: &mut impl io::Write) -> Result<(), Fo
             table_rows.push([
                 String::new(),
                 row.owner().to_string(),
-                format_ttl(row.ttl()),
+                ttl::format(row.ttl()),
                 row.class().to_string(),
                 row.rtype().to_string(),
                 row.data().to_string(),
