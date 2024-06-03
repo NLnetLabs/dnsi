@@ -2,7 +2,7 @@
 name = "dnsi"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.74.0"
+rust-version = "1.78.0"
 authors = ["NLnet Labs <dns-team@nlnetlabs.nl>"]
 description = "A tool for investigating the DNS."
 repository = "https://github.com/nlnetlabs/dnsi/"

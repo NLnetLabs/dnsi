@@ -15,6 +15,8 @@ Bug fixes
 
 Other changes
 
+* Increased minimum supported Rust version to 1.78.
+
 [#4]: https://github.com/NLnetLabs/dnsi/pull/4
 [#10]: https://github.com/NLnetLabs/dnsi/pull/10
 [#18]: https://github.com/NLnetLabs/dnsi/pull/18
