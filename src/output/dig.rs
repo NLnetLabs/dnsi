@@ -9,7 +9,8 @@ use crate::client::Answer;
 //------------ write ---------------------------------------------------------
 
 pub fn write(
-    answer: &Answer, target: &mut impl io::Write
+    answer: &Answer,
+    target: &mut impl io::Write,
 ) -> Result<(), io::Error> {
     let msg = answer.msg_slice();
 
