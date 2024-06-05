@@ -1,42 +1,12 @@
 use std::io;
 
-use domain::{
-    base::{wire::ParseError, Rtype},
-    rdata::AllRecordData,
-};
+use domain::base::Rtype;
+use domain::rdata::AllRecordData;
 
-use super::ttl;
+use super::{error::OutputError, ttl};
 use crate::{client::Answer, output::table_writer::TableWriter};
 
-enum FormatError {
-    Io(io::Error),
-    BadRecord(ParseError),
-}
-
-impl From<io::Error> for FormatError {
-    fn from(value: io::Error) -> Self {
-        Self::Io(value)
-    }
-}
-
-impl From<ParseError> for FormatError {
-    fn from(value: ParseError) -> Self {
-        Self::BadRecord(value)
-    }
-}
-
-pub fn write(answer: &Answer, target: &mut impl io::Write) -> io::Result<()> {
-    match write_internal(answer, target) {
-        Ok(()) => Ok(()),
-        Err(FormatError::Io(e)) => Err(e),
-        Err(FormatError::BadRecord(e)) => {
-            writeln!(target, "ERROR: bad record: {e}")?;
-            Ok(())
-        }
-    }
-}
-
-fn write_internal(answer: &Answer, target: &mut impl io::Write) -> Result<(), FormatError> {
+pub fn write(answer: &Answer, target: &mut impl io::Write) -> Result<(), OutputError> {
     let msg = answer.msg_slice();
 
     let mut table_rows = Vec::new();

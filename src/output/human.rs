@@ -8,6 +8,7 @@ use domain::rdata::AllRecordData;
 use std::io;
 
 use super::ansi::{BOLD, RESET};
+use super::error::OutputError;
 use super::ttl;
 use crate::client::Answer;
 
@@ -15,35 +16,7 @@ use super::table_writer::TableWriter;
 
 type Rec<'a> = Record<ParsedName<&'a [u8]>, AllRecordData<&'a [u8], ParsedName<&'a [u8]>>>;
 
-enum FormatError {
-    Io(io::Error),
-    BadRecord(ParseError),
-}
-
-impl From<io::Error> for FormatError {
-    fn from(value: io::Error) -> Self {
-        Self::Io(value)
-    }
-}
-
-impl From<ParseError> for FormatError {
-    fn from(value: ParseError) -> Self {
-        Self::BadRecord(value)
-    }
-}
-
-pub fn write(answer: &Answer, target: &mut impl io::Write) -> io::Result<()> {
-    match write_internal(answer, target) {
-        Ok(()) => Ok(()),
-        Err(FormatError::Io(e)) => Err(e),
-        Err(FormatError::BadRecord(e)) => {
-            writeln!(target, "ERROR: bad record: {e}")?;
-            Ok(())
-        }
-    }
-}
-
-fn write_internal(answer: &Answer, target: &mut impl io::Write) -> Result<(), FormatError> {
+pub fn write(answer: &Answer, target: &mut impl io::Write) -> Result<(), OutputError> {
     let msg = answer.msg_slice();
 
     let header = msg.header();
@@ -100,7 +73,7 @@ fn write_header(
     target: &mut impl io::Write,
     header: Header,
     counts: HeaderCounts,
-) -> Result<(), FormatError> {
+) -> Result<(), OutputError> {
     writeln!(target, "{BOLD}HEADER{RESET}")?;
     let header_rows = [
         ["opcode:".into(), header.opcode().to_string()],
@@ -129,7 +102,7 @@ fn write_header(
     Ok(())
 }
 
-fn write_opt(target: &mut impl io::Write, opt: &OptRecord<&[u8]>) -> Result<(), FormatError> {
+fn write_opt(target: &mut impl io::Write, opt: &OptRecord<&[u8]>) -> Result<(), OutputError> {
     writeln!(target, "\n{BOLD}OPT PSEUDOSECTION{RESET}")?;
 
     let mut rows = Vec::new();
@@ -183,7 +156,7 @@ fn write_opt(target: &mut impl io::Write, opt: &OptRecord<&[u8]>) -> Result<(), 
 fn write_question(
     target: &mut impl io::Write,
     questions: &QuestionSection<&[u8]>,
-) -> Result<(), FormatError> {
+) -> Result<(), OutputError> {
     writeln!(target, "\n{BOLD}QUESTION SECTION{RESET}")?;
 
     let questions = questions
@@ -195,7 +168,7 @@ fn write_question(
                 q.qclass().to_string(),
             ])
         })
-        .collect::<Result<Vec<_>, FormatError>>()?;
+        .collect::<Result<Vec<_>, OutputError>>()?;
 
     TableWriter {
         indent: "  ",
@@ -212,7 +185,7 @@ fn write_question(
 fn write_answers<'a>(
     target: &mut impl io::Write,
     answers: impl Iterator<Item = Result<Rec<'a>, ParseError>>,
-) -> Result<(), FormatError> {
+) -> Result<(), OutputError> {
     writeln!(target, "\n{BOLD}ANSWER SECTION{RESET}")?;
     write_answer_table(target, answers)
 }
@@ -220,7 +193,7 @@ fn write_answers<'a>(
 fn write_answer_table<'a>(
     target: &mut impl io::Write,
     answers: impl Iterator<Item = Result<Rec<'a>, ParseError>>,
-) -> Result<(), FormatError> {
+) -> Result<(), OutputError> {
     let answers = answers
         .map(|a| {
             let a = a?;
@@ -232,7 +205,7 @@ fn write_answer_table<'a>(
                 a.data().to_string(),
             ])
         })
-        .collect::<Result<Vec<_>, FormatError>>()?;
+        .collect::<Result<Vec<_>, OutputError>>()?;
 
     TableWriter {
         indent: "  ",
@@ -250,7 +223,7 @@ fn write_stats(
     target: &mut impl io::Write,
     msg: Message<&[u8]>,
     answer: &Answer,
-) -> Result<(), FormatError> {
+) -> Result<(), OutputError> {
     writeln!(target, "\n{BOLD}EXTRA INFO{RESET}")?;
     let stats = answer.stats();
     let stats = [
