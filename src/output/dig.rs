@@ -3,6 +3,7 @@
 use crate::client::Answer;
 use domain::base::iana::Rtype;
 use domain::base::opt::AllOptData;
+use domain::base::ParsedRecord;
 use domain::rdata::AllRecordData;
 use std::io;
 
@@ -89,33 +90,27 @@ pub fn write(answer: &Answer, target: &mut impl io::Write) -> Result<(), OutputE
     if counts.ancount() > 0 {
         writeln!(target, "\n;; ANSWER SECTION:")?;
         for item in section {
-            let item = item?;
-            writeln!(target, "{}", item.into_any_record::<AllRecordData<_, _>>()?)?;
+            write_record_item(target, &item?)?;
         }
     }
 
     // Authority
-    let section = section
-        .next_section()?
-        .unwrap();
+    let section = section.next_section()?.unwrap();
     if counts.nscount() > 0 {
         writeln!(target, "\n;; AUTHORITY SECTION:")?;
         for item in section {
-            let item = item?;
-            writeln!(target, "{}", item)?;
+            write_record_item(target, &item?)?;
         }
     }
 
     // Additional
-    let section = section
-        .next_section()?
-        .unwrap();
+    let section = section.next_section()?.unwrap();
     if counts.arcount() > 1 || (opt.is_none() && counts.arcount() > 0) {
         writeln!(target, "\n;; ADDITIONAL SECTION:")?;
         for item in section {
             let item = item?;
             if item.rtype() != Rtype::OPT {
-                writeln!(target, "{}", item)?
+                write_record_item(target, &item)?;
             }
         }
     }
@@ -144,6 +139,28 @@ pub fn write(answer: &Answer, target: &mut impl io::Write) -> Result<(), OutputE
     Ok(())
 }
 
-fn write_record_section(section: &RecordSection<&[u8]>) -> Result<(), OutputError> {
-    
+fn write_record_item(
+    target: &mut impl io::Write,
+    item: &ParsedRecord<&[u8]>,
+) -> Result<(), io::Error> {
+    let parsed = item.to_any_record::<AllRecordData<_, _>>();
+
+    if parsed.is_err() {
+        write!(target, "; ")?;
+    }
+
+    let data = match parsed {
+        Ok(item) => item.data().to_string(),
+        Err(_) => "<invalid data>".into(),
+    };
+
+    writeln!(
+        target,
+        "{}  {}  {}  {}  {}",
+        item.owner(),
+        item.ttl().as_secs(),
+        item.class(),
+        item.rtype(),
+        data
+    )
 }

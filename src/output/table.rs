@@ -15,31 +15,39 @@ pub fn write(answer: &Answer, target: &mut impl io::Write) -> Result<(), OutputE
     let mut section = msg.question().answer()?;
 
     for name in SECTION_NAMES {
-        let mut iter = section
-            .limit_to::<AllRecordData<_, _>>()
-            .filter(|i| i.as_ref().map_or(true, |i| i.rtype() != Rtype::OPT));
+        let mut iter = section.filter(|i| i.as_ref().map_or(true, |i| i.rtype() != Rtype::OPT));
 
+        // The first row of each section gets the section name
         if let Some(row) = iter.next() {
             let row = row?;
+            let data = match row.to_any_record::<AllRecordData<_, _>>() {
+                Ok(row) => row.data().to_string(),
+                Err(_) => "<invalid data>".into(),
+            };
             table_rows.push([
                 name.into(),
                 row.owner().to_string(),
                 ttl::format(row.ttl()),
                 row.class().to_string(),
                 row.rtype().to_string(),
-                row.data().to_string(),
+                data,
             ]);
         }
 
+        // The rest of the rows we show without section name
         for row in &mut iter {
             let row = row?;
+            let data = match row.to_any_record::<AllRecordData<_, _>>() {
+                Ok(row) => row.data().to_string(),
+                Err(_) => "<invalid data>".into(),
+            };
             table_rows.push([
                 String::new(),
                 row.owner().to_string(),
                 ttl::format(row.ttl()),
                 row.class().to_string(),
                 row.rtype().to_string(),
-                row.data().to_string(),
+                data,
             ]);
         }
 

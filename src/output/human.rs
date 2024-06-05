@@ -3,7 +3,7 @@
 use domain::base::iana::Rtype;
 use domain::base::opt::{AllOptData, OptRecord};
 use domain::base::wire::ParseError;
-use domain::base::{Header, HeaderCounts, Message, ParsedName, QuestionSection, Record};
+use domain::base::{Header, HeaderCounts, Message, ParsedRecord, QuestionSection};
 use domain::rdata::AllRecordData;
 use std::io;
 
@@ -13,8 +13,6 @@ use super::ttl;
 use crate::client::Answer;
 
 use super::table_writer::TableWriter;
-
-type Rec<'a> = Record<ParsedName<&'a [u8]>, AllRecordData<&'a [u8], ParsedName<&'a [u8]>>>;
 
 pub fn write(answer: &Answer, target: &mut impl io::Write) -> Result<(), OutputError> {
     let msg = answer.msg_slice();
@@ -36,26 +34,19 @@ pub fn write(answer: &Answer, target: &mut impl io::Write) -> Result<(), OutputE
         write_question(target, &questions)?;
     }
 
-    let mut section = questions.answer()?.limit_to::<AllRecordData<_, _>>();
+    let section = questions.answer()?;
     if counts.ancount() > 0 {
-        write_answers(target, &mut section)?;
+        writeln!(target, "\n{BOLD}ANSWER SECTION{RESET}")?;
+        write_answer_table(target, section)?;
     }
 
-    // Authority
-    let mut section = section
-        .next_section()?
-        .unwrap()
-        .limit_to::<AllRecordData<_, _>>();
+    let mut section = section.next_section()?.unwrap();
     if counts.nscount() > 0 {
         writeln!(target, "\n{BOLD}AUTHORITY SECTION{RESET}")?;
         write_answer_table(target, &mut section)?;
     }
 
-    // Additional
-    let section = section
-        .next_section()?
-        .unwrap()
-        .limit_to::<AllRecordData<_, _>>();
+    let section = section.next_section()?.unwrap();
     if counts.arcount() > 1 || (opt.is_none() && counts.arcount() > 0) {
         writeln!(target, "\n{BOLD}ADDITIONAL SECTION{RESET}")?;
         write_answer_table(
@@ -182,27 +173,24 @@ fn write_question(
     Ok(())
 }
 
-fn write_answers<'a>(
-    target: &mut impl io::Write,
-    answers: impl Iterator<Item = Result<Rec<'a>, ParseError>>,
-) -> Result<(), OutputError> {
-    writeln!(target, "\n{BOLD}ANSWER SECTION{RESET}")?;
-    write_answer_table(target, answers)
-}
-
 fn write_answer_table<'a>(
     target: &mut impl io::Write,
-    answers: impl Iterator<Item = Result<Rec<'a>, ParseError>>,
+    answers: impl Iterator<Item = Result<ParsedRecord<'a, &'a [u8]>, ParseError>>,
 ) -> Result<(), OutputError> {
     let answers = answers
-        .map(|a| {
-            let a = a?;
+        .map(|item| {
+            let item = item?;
+            let res = item.to_any_record::<AllRecordData<_, _>>();
+            let data = match res {
+                Ok(item) => item.data().to_string(),
+                Err(_) => "<invalid data>".to_string(),
+            };
             Ok([
-                a.owner().to_string(),
-                ttl::format(a.ttl()),
-                a.class().to_string(),
-                a.rtype().to_string(),
-                a.data().to_string(),
+                item.owner().to_string(),
+                ttl::format(item.ttl()),
+                item.class().to_string(),
+                item.rtype().to_string(),
+                data,
             ])
         })
         .collect::<Result<Vec<_>, OutputError>>()?;
