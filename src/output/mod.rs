@@ -2,6 +2,7 @@
 
 mod ansi;
 mod dig;
+mod error;
 mod human;
 mod table;
 mod table_writer;
@@ -9,6 +10,7 @@ mod ttl;
 
 use super::client::Answer;
 use clap::{Parser, ValueEnum};
+use error::OutputError;
 use std::io;
 
 //------------ OutputFormat --------------------------------------------------
@@ -31,10 +33,18 @@ pub struct OutputOptions {
 
 impl OutputFormat {
     pub fn write(self, msg: &Answer, target: &mut impl io::Write) -> Result<(), io::Error> {
-        match self {
+        let res = match self {
             Self::Dig => self::dig::write(msg, target),
             Self::Human => self::human::write(msg, target),
             Self::Table => self::table::write(msg, target),
+        };
+        match res {
+            Ok(()) => Ok(()),
+            Err(OutputError::Io(e)) => Err(e),
+            Err(OutputError::BadRecord(e)) => {
+                writeln!(target, "ERROR: malformed message: {e}")?;
+                Ok(())
+            }
         }
     }
 

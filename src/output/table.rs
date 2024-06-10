@@ -1,42 +1,12 @@
 use std::io;
 
-use domain::{
-    base::{wire::ParseError, Rtype},
-    rdata::AllRecordData,
-};
+use domain::base::Rtype;
+use domain::rdata::AllRecordData;
 
-use super::ttl;
+use super::{error::OutputError, ttl};
 use crate::{client::Answer, output::table_writer::TableWriter};
 
-enum FormatError {
-    Io(io::Error),
-    BadRecord(ParseError),
-}
-
-impl From<io::Error> for FormatError {
-    fn from(value: io::Error) -> Self {
-        Self::Io(value)
-    }
-}
-
-impl From<ParseError> for FormatError {
-    fn from(value: ParseError) -> Self {
-        Self::BadRecord(value)
-    }
-}
-
-pub fn write(answer: &Answer, target: &mut impl io::Write) -> io::Result<()> {
-    match write_internal(answer, target) {
-        Ok(()) => Ok(()),
-        Err(FormatError::Io(e)) => Err(e),
-        Err(FormatError::BadRecord(e)) => {
-            writeln!(target, "ERROR: bad record: {e}")?;
-            Ok(())
-        }
-    }
-}
-
-fn write_internal(answer: &Answer, target: &mut impl io::Write) -> Result<(), FormatError> {
+pub fn write(answer: &Answer, target: &mut impl io::Write) -> Result<(), OutputError> {
     let msg = answer.msg_slice();
 
     let mut table_rows = Vec::new();
@@ -45,31 +15,39 @@ fn write_internal(answer: &Answer, target: &mut impl io::Write) -> Result<(), Fo
     let mut section = msg.question().answer()?;
 
     for name in SECTION_NAMES {
-        let mut iter = section
-            .limit_to::<AllRecordData<_, _>>()
-            .filter(|i| i.as_ref().map_or(true, |i| i.rtype() != Rtype::OPT));
+        let mut iter = section.filter(|i| i.as_ref().map_or(true, |i| i.rtype() != Rtype::OPT));
 
+        // The first row of each section gets the section name
         if let Some(row) = iter.next() {
             let row = row?;
+            let data = match row.to_any_record::<AllRecordData<_, _>>() {
+                Ok(row) => row.data().to_string(),
+                Err(_) => "<invalid data>".into(),
+            };
             table_rows.push([
                 name.into(),
                 row.owner().to_string(),
                 ttl::format(row.ttl()),
                 row.class().to_string(),
                 row.rtype().to_string(),
-                row.data().to_string(),
+                data,
             ]);
         }
 
+        // The rest of the rows we show without section name
         for row in &mut iter {
             let row = row?;
+            let data = match row.to_any_record::<AllRecordData<_, _>>() {
+                Ok(row) => row.data().to_string(),
+                Err(_) => "<invalid data>".into(),
+            };
             table_rows.push([
                 String::new(),
                 row.owner().to_string(),
                 ttl::format(row.ttl()),
                 row.class().to_string(),
                 row.rtype().to_string(),
-                row.data().to_string(),
+                data,
             ]);
         }
 
