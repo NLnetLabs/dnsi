@@ -6,7 +6,10 @@ use domain::rdata::AllRecordData;
 use super::{error::OutputError, ttl};
 use crate::{client::Answer, output::table_writer::TableWriter};
 
-pub fn write(answer: &Answer, target: &mut impl io::Write) -> Result<(), OutputError> {
+pub fn write(
+    answer: &Answer,
+    target: &mut impl io::Write,
+) -> Result<(), OutputError> {
     let msg = answer.msg_slice();
 
     let mut table_rows = Vec::new();
@@ -15,7 +18,8 @@ pub fn write(answer: &Answer, target: &mut impl io::Write) -> Result<(), OutputE
     let mut section = msg.question().answer()?;
 
     for name in SECTION_NAMES {
-        let mut iter = section.filter(|i| i.as_ref().map_or(true, |i| i.rtype() != Rtype::OPT));
+        let mut iter = section
+            .filter(|i| i.as_ref().map_or(true, |i| i.rtype() != Rtype::OPT));
 
         // The first row of each section gets the section name
         if let Some(row) = iter.next() {

@@ -1,17 +1,16 @@
 //! The help command of _dnsi._
 
+use crate::error::Error;
 use std::io::Write;
 use std::process::Command;
 use tempfile::NamedTempFile;
-use crate::error::Error;
-
 
 //------------ Help ----------------------------------------------------------
 
 #[derive(Clone, Debug, clap::Args)]
 pub struct Help {
     /// The command to show the man page for
-    #[arg(value_name="COMMAND")]
+    #[arg(value_name = "COMMAND")]
     command: Option<String>,
 }
 
@@ -39,17 +38,16 @@ impl Help {
                 err
             )
         })?;
-        let _ = Command::new("man").arg(file.path()).status().map_err(|err| {
-            format!("Failed to run man: {}", err)
-        })?;
+        let _ = Command::new("man")
+            .arg(file.path())
+            .status()
+            .map_err(|err| format!("Failed to run man: {}", err))?;
         Ok(())
     }
 }
 
 impl Help {
     const DNSI_1: &'static [u8] = include_bytes!("../../doc/dnsi.1");
-    const DNSI_QUERY_1: &'static [u8] = include_bytes!(
-        "../../doc/dnsi-query.1"
-    );
+    const DNSI_QUERY_1: &'static [u8] =
+        include_bytes!("../../doc/dnsi-query.1");
 }
-

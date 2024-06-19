@@ -20,7 +20,9 @@ pub fn format(ttl: Ttl) -> String {
 
     let mut s = String::new();
 
-    for (n, unit) in [(days, "d"), (hours, "h"), (minutes, "m"), (seconds, "s")] {
+    for (n, unit) in
+        [(days, "d"), (hours, "h"), (minutes, "m"), (seconds, "s")]
+    {
         if !s.is_empty() {
             write!(s, " {n:>2}{unit}").unwrap();
         } else if n > 0 {

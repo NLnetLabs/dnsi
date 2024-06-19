@@ -49,7 +49,8 @@ impl<const N: usize> TableWriter<'_, N> {
             }
         }
 
-        let columns: Vec<_> = (0..N).filter(|i| enabled_columns[*i]).collect();
+        let columns: Vec<_> =
+            (0..N).filter(|i| enabled_columns[*i]).collect();
 
         if columns.is_empty() {
             return Ok(());
@@ -58,7 +59,12 @@ impl<const N: usize> TableWriter<'_, N> {
         if let Some(header) = self.header {
             write!(target, "{indent}{UNDERLINE}{ITALIC}")?;
             for &i in &columns[..columns.len() - 1] {
-                write!(target, "{:<width$}{spacing}", header[i], width = widths[i])?;
+                write!(
+                    target,
+                    "{:<width$}{spacing}",
+                    header[i],
+                    width = widths[i]
+                )?;
             }
             let last = columns[columns.len() - 1];
             write!(target, "{:<width$}", header[last], width = widths[last])?;
@@ -77,9 +83,19 @@ impl<const N: usize> TableWriter<'_, N> {
             }
             let last = columns[columns.len() - 1];
             if right_aligned[last] {
-                write!(target, "{:>width$}", row[last], width = widths[last])?;
+                write!(
+                    target,
+                    "{:>width$}",
+                    row[last],
+                    width = widths[last]
+                )?;
             } else {
-                write!(target, "{:<width$}", row[last], width = widths[last])?;
+                write!(
+                    target,
+                    "{:<width$}",
+                    row[last],
+                    width = widths[last]
+                )?;
             }
             writeln!(target)?;
         }

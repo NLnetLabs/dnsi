@@ -44,7 +44,11 @@ impl Lookup {
         res.map_err(|_| "not all lookups have succeeded".into())
     }
 
-    async fn execute_one_name(&self, resolver: &StubResolver, name: &ServerName) -> Result<(), ()> {
+    async fn execute_one_name(
+        &self,
+        resolver: &StubResolver,
+        name: &ServerName,
+    ) -> Result<(), ()> {
         let res = match name {
             ServerName::Name(host) => forward(resolver, host).await,
             ServerName::Addr(addr) => reverse(resolver, *addr).await,
@@ -59,10 +63,17 @@ impl Lookup {
     }
 }
 
-async fn forward(resolver: &StubResolver, name: &UncertainName<Vec<u8>>) -> Result<(), Error> {
+async fn forward(
+    resolver: &StubResolver,
+    name: &UncertainName<Vec<u8>>,
+) -> Result<(), Error> {
     let answer = match name {
-        UncertainName::Absolute(ref name) => resolver.lookup_host(name).await?,
-        UncertainName::Relative(ref name) => resolver.search_host(name).await?,
+        UncertainName::Absolute(ref name) => {
+            resolver.lookup_host(name).await?
+        }
+        UncertainName::Relative(ref name) => {
+            resolver.search_host(name).await?
+        }
     };
 
     print!("{name}");

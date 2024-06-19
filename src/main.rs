@@ -7,4 +7,3 @@ fn main() {
         eprintln!("{}", err);
     }
 }
-

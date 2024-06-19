@@ -32,7 +32,11 @@ pub struct OutputOptions {
 }
 
 impl OutputFormat {
-    pub fn write(self, msg: &Answer, target: &mut impl io::Write) -> Result<(), io::Error> {
+    pub fn write(
+        self,
+        msg: &Answer,
+        target: &mut impl io::Write,
+    ) -> Result<(), io::Error> {
         let res = match self {
             Self::Dig => self::dig::write(msg, target),
             Self::Human => self::human::write(msg, target),

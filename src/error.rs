@@ -1,10 +1,9 @@
 //! Error handling.
 
-use std::{error, fmt, io};
-use std::borrow::Cow;
 use domain::base::wire::ParseError;
 use domain::net::client::request;
-
+use std::borrow::Cow;
+use std::{error, fmt, io};
 
 //------------ Error ---------------------------------------------------------
 
@@ -15,13 +14,17 @@ pub struct Error {
 
 impl From<&'static str> for Error {
     fn from(message: &'static str) -> Self {
-        Self { message: Cow::Borrowed(message) }
+        Self {
+            message: Cow::Borrowed(message),
+        }
     }
 }
 
 impl From<String> for Error {
     fn from(message: String) -> Self {
-        Self { message: Cow::Owned(message) }
+        Self {
+            message: Cow::Owned(message),
+        }
     }
 }
 
@@ -49,4 +52,4 @@ impl fmt::Display for Error {
     }
 }
 
-impl error::Error for Error { }
+impl error::Error for Error {}
