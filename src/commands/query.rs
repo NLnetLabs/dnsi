@@ -9,7 +9,7 @@ use domain::base::message::Message;
 use domain::base::message_builder::MessageBuilder;
 use domain::base::name::{Name, ParsedName, ToName, UncertainName};
 use domain::base::rdata::RecordData;
-use domain::net::client::request::{ComposeRequest, RequestMessage};
+use domain::net::client::request::RequestMessage;
 use domain::rdata::{AllRecordData, Ns, Soa};
 use domain::resolv::stub::conf::ResolvConf;
 use domain::resolv::stub::StubResolver;
