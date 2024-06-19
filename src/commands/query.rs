@@ -9,7 +9,7 @@ use domain::base::message::Message;
 use domain::base::message_builder::MessageBuilder;
 use domain::base::name::{Name, ParsedName, ToName, UncertainName};
 use domain::base::rdata::RecordData;
-use domain::net::client::request::RequestMessage;
+use domain::net::client::request::{ComposeRequest, RequestMessage};
 use domain::rdata::{AllRecordData, Ns, Soa};
 use domain::resolv::stub::conf::ResolvConf;
 use domain::resolv::stub::StubResolver;
@@ -67,10 +67,46 @@ pub struct Query {
     #[arg(long)]
     udp_payload_size: Option<u16>,
 
-    /// Unset the RD flag in the request.
-    #[arg(long)]
+    // No need to set the AA flag in the request.
+    /// Set the AD flag in the request.
+    #[arg(long, overrides_with = "_no_ad")]
+    ad: bool,
+
+    /// Do not set the AD flag in the request.
+    #[arg(long = "no-ad")]
+    _no_ad: bool,
+
+    /// Set the CD flag in the request.
+    #[arg(long, overrides_with = "_no_cd")]
+    cd: bool,
+
+    /// Do not set the CD flag in the request.
+    #[arg(long = "no-cd")]
+    _no_cd: bool,
+
+    /// Set the DO flag in the EDNS Opt record in the request.
+    // Calling the field `do` would conflict with the keyward `do`.
+    #[arg(long = "do", overrides_with = "_no_do")]
+    dnssec_ok: bool,
+
+    /// Do not set the DO flag in the request, avoid creating the EDNS Opt
+    /// record.
+    #[arg(long = "no-do")]
+    _no_do: bool,
+
+    // No need to set the RA flag in the request.
+    /// Set the RD flag in the request.
+    // Tricky, we want RD default to true. The obvious, to have default_value
+    // fails in combination with overrides_with. The solution is to test if
+    // no_rd is false.
+    #[arg(long, overrides_with = "no_rd")]
+    _rd: bool,
+
+    /// Do not set the RD flag in the request.
+    #[arg(long = "no-rd")]
     no_rd: bool,
 
+    // No need to set the TC flag in the request.
     /// Disable all sanity checks.
     #[arg(long, short = 'f')]
     force: bool,
@@ -234,12 +270,19 @@ impl Query {
     fn create_request(&self) -> RequestMessage<Vec<u8>> {
         let mut res = MessageBuilder::new_vec();
 
+        res.header_mut().set_ad(self.ad);
+        res.header_mut().set_cd(self.cd);
         res.header_mut().set_rd(!self.no_rd);
 
         let mut res = res.question();
         res.push((&self.qname, self.qtype)).unwrap();
 
-        RequestMessage::new(res)
+        let mut req = RequestMessage::new(res);
+        if self.dnssec_ok {
+            // Avoid touching the EDNS Opt record unless we need to set DO.
+            req.set_dnssec_ok(true);
+        }
+        req
     }
 }
 
