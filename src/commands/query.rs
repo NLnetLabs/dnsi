@@ -205,15 +205,13 @@ impl Query {
             servers.push(Server {
                 addr: SocketAddr::new(
                     addr,
-                    self.port.unwrap_or_else(
-                        || {
-                            if self.tls {
-                                853
-                            } else {
-                                53
-                            }
-                        },
-                    ),
+                    self.port.unwrap_or({
+                        if self.tls {
+                            853
+                        } else {
+                            53
+                        }
+                    }),
                 ),
                 transport: self.transport(),
                 timeout: self.timeout(),
@@ -230,7 +228,7 @@ impl Query {
         Client::with_servers(vec![Server {
             addr: SocketAddr::new(
                 addr,
-                self.port.unwrap_or_else(|| if self.tls { 853 } else { 53 }),
+                self.port.unwrap_or(if self.tls { 853 } else { 53 }),
             ),
             transport: self.transport(),
             timeout: self.timeout(),
