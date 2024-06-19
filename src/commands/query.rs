@@ -9,7 +9,7 @@ use domain::base::message::Message;
 use domain::base::message_builder::MessageBuilder;
 use domain::base::name::{Name, ParsedName, ToName, UncertainName};
 use domain::base::rdata::RecordData;
-use domain::net::client::request::RequestMessage;
+use domain::net::client::request::{ComposeRequest, RequestMessage};
 use domain::rdata::{AllRecordData, Ns, Soa};
 use domain::resolv::stub::conf::ResolvConf;
 use domain::resolv::stub::StubResolver;
@@ -54,6 +54,14 @@ pub struct Query {
     /// Use only UDP.
     #[arg(short, long)]
     udp: bool,
+
+    /// Use TLS.
+    #[arg(long)]
+    tls: bool,
+
+    /// The name of the server for SNI and certificate verification.
+    #[arg(long)]
+    sni: Option<String>,
 
     /// Set the timeout for a query.
     #[arg(long, value_name = "SECONDS")]
@@ -110,13 +118,30 @@ impl Query {
             .block_on(self.async_execute())
     }
 
-    pub async fn async_execute(self) -> Result<(), Error> {
+    pub async fn async_execute(mut self) -> Result<(), Error> {
         let client = match self.server {
             Some(ServerName::Name(ref host)) => {
+                if self.sni.is_none() {
+                    self.sni = Some(host.to_string());
+                }
                 self.host_server(host).await?
             }
-            Some(ServerName::Addr(addr)) => self.addr_server(addr),
-            None => self.system_server(),
+            Some(ServerName::Addr(addr)) => {
+                if self.tls && self.sni.is_none() {
+                    return Err(
+                        "Sni option is required for TLS transport".into()
+                    );
+                }
+                self.addr_server(addr)
+            }
+            None => {
+                if self.tls {
+                    return Err(
+                        "Server option is required for TLS transport".into(),
+                    );
+                }
+                self.system_server()
+            }
         };
 
         let answer = client.request(self.create_request()).await?;
@@ -178,11 +203,23 @@ impl Query {
                 continue;
             }
             servers.push(Server {
-                addr: SocketAddr::new(addr, self.port.unwrap_or(53)),
+                addr: SocketAddr::new(
+                    addr,
+                    self.port.unwrap_or_else(
+                        || {
+                            if self.tls {
+                                853
+                            } else {
+                                53
+                            }
+                        },
+                    ),
+                ),
                 transport: self.transport(),
                 timeout: self.timeout(),
                 retries: self.retries.unwrap_or(2),
                 udp_payload_size: self.udp_payload_size.unwrap_or(1232),
+                sni: self.sni.clone(),
             });
         }
         Ok(Client::with_servers(servers))
@@ -191,11 +228,15 @@ impl Query {
     /// Resolves a provided server name.
     fn addr_server(&self, addr: IpAddr) -> Client {
         Client::with_servers(vec![Server {
-            addr: SocketAddr::new(addr, self.port.unwrap_or(53)),
+            addr: SocketAddr::new(
+                addr,
+                self.port.unwrap_or_else(|| if self.tls { 853 } else { 53 }),
+            ),
             transport: self.transport(),
             timeout: self.timeout(),
             retries: self.retries(),
             udp_payload_size: self.udp_payload_size(),
+            sni: self.sni.clone(),
         }])
     }
 
@@ -211,6 +252,7 @@ impl Query {
                     timeout: server.request_timeout,
                     retries: u8::try_from(conf.options.attempts).unwrap_or(2),
                     udp_payload_size: server.udp_payload_size,
+                    sni: None,
                 })
                 .collect(),
         )
@@ -219,6 +261,8 @@ impl Query {
     fn transport(&self) -> Transport {
         if self.udp {
             Transport::Udp
+        } else if self.tls {
+            Transport::Tls
         } else if self.tcp {
             Transport::Tcp
         } else {
@@ -330,6 +374,7 @@ impl Query {
                 timeout: self.timeout(),
                 retries: self.retries(),
                 udp_payload_size: self.udp_payload_size(),
+                sni: None,
             })
             .collect())
     }

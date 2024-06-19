@@ -13,8 +13,10 @@ use domain::net::client::{dgram, stream};
 use domain::resolv::stub::conf;
 use std::fmt;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpStream;
+use tokio_rustls::rustls::{ClientConfig, RootCertStore};
 
 //------------ Client --------------------------------------------------------
 
@@ -38,6 +40,7 @@ impl Client {
                     timeout: server.request_timeout,
                     retries: u8::try_from(conf.options.attempts).unwrap_or(2),
                     udp_payload_size: server.udp_payload_size,
+                    sni: None,
                 })
                 .collect(),
         }
@@ -90,6 +93,7 @@ impl Client {
             Transport::Udp => self.request_udp(request, server).await,
             Transport::UdpTcp => self.request_udptcp(request, server).await,
             Transport::Tcp => self.request_tcp(request, server).await,
+            Transport::Tls => self.request_tls(request, server).await,
         }
     }
 
@@ -138,6 +142,44 @@ impl Client {
         Ok(Answer { message, stats })
     }
 
+    pub async fn request_tls(
+        &self,
+        request: RequestMessage<Vec<u8>>,
+        server: &Server,
+    ) -> Result<Answer, Error> {
+        let root_store = RootCertStore {
+            roots: webpki_roots::TLS_SERVER_ROOTS.into(),
+        };
+        let client_config = Arc::new(
+            ClientConfig::builder()
+                .with_root_certificates(root_store)
+                .with_no_client_auth(),
+        );
+
+        let mut stats = Stats::new(server.addr, Protocol::Tls);
+        let tcp_socket = TcpStream::connect(server.addr).await?;
+        let tls_connector = tokio_rustls::TlsConnector::from(client_config);
+        let server_name = server
+            .sni
+            .clone()
+            .expect("sni must be set for tls")
+            .try_into()
+            .map_err(|_| {
+                let s = "Invalid DNS name";
+                <&str as Into<Error>>::into(s)
+            })?;
+        let tls_socket =
+            tls_connector.connect(server_name, tcp_socket).await?;
+        let (conn, tran) = stream::Connection::with_config(
+            tls_socket,
+            Self::stream_config(server),
+        );
+        tokio::spawn(tran.run());
+        let message = conn.send_request(request).get_response().await?;
+        stats.finalize();
+        Ok(Answer { message, stats })
+    }
+
     fn dgram_config(server: &Server) -> dgram::Config {
         let mut res = dgram::Config::new();
         res.set_read_timeout(server.timeout);
@@ -162,6 +204,7 @@ pub struct Server {
     pub timeout: Duration,
     pub retries: u8,
     pub udp_payload_size: u16,
+    pub sni: Option<String>,
 }
 
 //------------ Transport -----------------------------------------------------
@@ -171,6 +214,7 @@ pub enum Transport {
     Udp,
     UdpTcp,
     Tcp,
+    Tls,
 }
 
 impl From<conf::Transport> for Transport {
@@ -241,6 +285,7 @@ impl Stats {
 pub enum Protocol {
     Udp,
     Tcp,
+    Tls,
 }
 
 impl fmt::Display for Protocol {
@@ -248,6 +293,7 @@ impl fmt::Display for Protocol {
         f.write_str(match *self {
             Protocol::Udp => "UDP",
             Protocol::Tcp => "TCP",
+            Protocol::Tls => "TLS",
         })
     }
 }
