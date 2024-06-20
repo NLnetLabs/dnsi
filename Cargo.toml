@@ -22,4 +22,11 @@ tokio    = { version = "1.33", features = ["rt-multi-thread"] }
 tokio-rustls = { version = "0.26.0", default-features = false, features = [ "ring", "logging", "tls12" ] }
 webpki-roots = "0.26.3"
 
+[package.metadata.deb]
+extended-description = "A tool for investigating the DNS."
 
+[package.metadata.generate-rpm]
+license = "BSD"
+assets = [
+  { source = "target/release/dnsi", dest = "/usr/bin/dnsi", mode = "755" },
+]
