@@ -9,7 +9,9 @@ months.
 The tool contains a number of commands. Currently, these are:
 
 * `dnsi query` sends a query to a name server or the system’s default
-  resolver.
+  resolver,
+* `dnsi lookup` looks up the IP addresses for domain names or the domain
+  names for IP addresses,
 * `dnsi help` displays the man page for any command.
 
 
