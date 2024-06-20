@@ -60,8 +60,8 @@ pub struct Query {
     tls: bool,
 
     /// The name of the server for SNI and certificate verification.
-    #[arg(long)]
-    sni: Option<String>,
+    #[arg(long = "tls-hostname")]
+    tls_hostname: Option<String>,
 
     /// Set the timeout for a query.
     #[arg(long, value_name = "SECONDS")]
@@ -121,15 +121,15 @@ impl Query {
     pub async fn async_execute(mut self) -> Result<(), Error> {
         let client = match self.server {
             Some(ServerName::Name(ref host)) => {
-                if self.sni.is_none() {
-                    self.sni = Some(host.to_string());
+                if self.tls_hostname.is_none() {
+                    self.tls_hostname = Some(host.to_string());
                 }
                 self.host_server(host).await?
             }
             Some(ServerName::Addr(addr)) => {
-                if self.tls && self.sni.is_none() {
+                if self.tls && self.tls_hostname.is_none() {
                     return Err(
-                        "Sni option is required for TLS transport".into()
+                        "--tls-hostname is required for TLS transport".into(),
                     );
                 }
                 self.addr_server(addr)
@@ -137,7 +137,7 @@ impl Query {
             None => {
                 if self.tls {
                     return Err(
-                        "Server option is required for TLS transport".into(),
+                        "--server is required for TLS transport".into()
                     );
                 }
                 self.system_server()
@@ -217,7 +217,7 @@ impl Query {
                 timeout: self.timeout(),
                 retries: self.retries.unwrap_or(2),
                 udp_payload_size: self.udp_payload_size.unwrap_or(1232),
-                sni: self.sni.clone(),
+                tls_hostname: self.tls_hostname.clone(),
             });
         }
         Ok(Client::with_servers(servers))
@@ -234,7 +234,7 @@ impl Query {
             timeout: self.timeout(),
             retries: self.retries(),
             udp_payload_size: self.udp_payload_size(),
-            sni: self.sni.clone(),
+            tls_hostname: self.tls_hostname.clone(),
         }])
     }
 
@@ -250,7 +250,7 @@ impl Query {
                     timeout: server.request_timeout,
                     retries: u8::try_from(conf.options.attempts).unwrap_or(2),
                     udp_payload_size: server.udp_payload_size,
-                    sni: None,
+                    tls_hostname: None,
                 })
                 .collect(),
         )
@@ -372,7 +372,7 @@ impl Query {
                 timeout: self.timeout(),
                 retries: self.retries(),
                 udp_payload_size: self.udp_payload_size(),
-                sni: None,
+                tls_hostname: None,
             })
             .collect())
     }

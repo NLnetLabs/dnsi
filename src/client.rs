@@ -40,7 +40,7 @@ impl Client {
                     timeout: server.request_timeout,
                     retries: u8::try_from(conf.options.attempts).unwrap_or(2),
                     udp_payload_size: server.udp_payload_size,
-                    sni: None,
+                    tls_hostname: None,
                 })
                 .collect(),
         }
@@ -160,9 +160,9 @@ impl Client {
         let tcp_socket = TcpStream::connect(server.addr).await?;
         let tls_connector = tokio_rustls::TlsConnector::from(client_config);
         let server_name = server
-            .sni
+            .tls_hostname
             .clone()
-            .expect("sni must be set for tls")
+            .expect("tls_hostname must be set for tls")
             .try_into()
             .map_err(|_| {
                 let s = "Invalid DNS name";
@@ -204,7 +204,7 @@ pub struct Server {
     pub timeout: Duration,
     pub retries: u8,
     pub udp_payload_size: u16,
-    pub sni: Option<String>,
+    pub tls_hostname: Option<String>,
 }
 
 //------------ Transport -----------------------------------------------------
