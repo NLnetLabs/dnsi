@@ -14,6 +14,9 @@ The tool contains a number of commands. Currently, these are:
   names for IP addresses,
 * `dnsi help` displays the man page for any command.
 
+There are many options for each command. To learn more about them, use 
+`--help` for a complete overview, or `-h` for a summary, e.g. 
+`dnsi query --help`. 
 
 ## Binary Packages
 
