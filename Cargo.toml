@@ -20,4 +20,11 @@ domain   = { version = "0.10", features = ["resolv", "unstable-client-transport"
 tempfile = "3.1.0"
 tokio    = { version = "1.33", features = ["rt-multi-thread"] }
 
+[package.metadata.deb]
+extended-description = "A tool for investigating the DNS."
 
+[package.metadata.generate-rpm]
+license = "BSD"
+assets = [
+  { source = "target/release/dnsi", dest = "/usr/bin/dnsi", mode = "755" },
+]
