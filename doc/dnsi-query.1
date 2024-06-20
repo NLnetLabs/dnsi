@@ -87,6 +87,22 @@ Specifies that only UDP should be used and the resulting answer be printed
 even if it had to be truncated.
 
 .TP
+.B --tls
+Specifies that TLS should be used. In this case a server name must be
+explicitly given via the
+.B --server
+option.
+
+.TP
+.B --tls-hostname
+Specifies the hostname to be used for server certificate validation when
+.B --tls
+is used. By default the name given to the
+.B --server
+option is used. The option is mandatory, however, if an address is used as
+for the server.
+
+.TP
 .BI --timeout \ seconds
 Sets the time after sending a query before a server is considered
 non-responsive if an answer is not received.
