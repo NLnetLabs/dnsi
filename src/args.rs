@@ -4,7 +4,7 @@ use super::commands::Command;
 use super::error::Error;
 
 #[derive(Clone, Debug, clap::Parser)]
-#[command(disable_help_subcommand = true)]
+#[command(version, disable_help_subcommand = true)]
 pub struct Args {
     #[command(subcommand)]
     command: Command,
