@@ -3,7 +3,7 @@
 mod ansi;
 mod dig;
 mod error;
-mod human;
+mod friendly;
 mod table;
 mod table_writer;
 mod ttl;
@@ -19,15 +19,17 @@ use std::io;
 pub enum OutputFormat {
     /// Similar to dig.
     Dig,
+
     /// Easily readable, formatted with ANSI codes and whitespace
-    Human,
+    Friendly,
+
     /// Short readable format
     Table,
 }
 
 #[derive(Clone, Debug, Parser)]
 pub struct OutputOptions {
-    #[arg(long = "format", default_value = "dig")]
+    #[arg(long = "format", default_value = "friendly")]
     pub format: OutputFormat,
 }
 
@@ -39,7 +41,7 @@ impl OutputFormat {
     ) -> Result<(), io::Error> {
         let res = match self {
             Self::Dig => self::dig::write(msg, target),
-            Self::Human => self::human::write(msg, target),
+            Self::Friendly => self::friendly::write(msg, target),
             Self::Table => self::table::write(msg, target),
         };
         match res {
