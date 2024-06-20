@@ -23,7 +23,9 @@ tokio-rustls = { version = "0.26.0", default-features = false, features = [ "rin
 webpki-roots = "0.26.3"
 
 [package.metadata.deb]
-extended-description = "A tool for investigating the DNS."
+extended-description = """\
+The dnsi utility is a command line tool for investigating various \
+aspects of the DNS."""
 
 [package.metadata.generate-rpm]
 license = "BSD"
