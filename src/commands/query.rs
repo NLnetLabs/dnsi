@@ -253,9 +253,8 @@ impl Query {
             let ns_set = self.get_ns_set(&apex, &resolver).await?;
             self.get_ns_addrs(&ns_set, &resolver).await?
         };
-        let qtype = self.qtype();
         Client::with_servers(servers)
-            .query((self.qname.to_name(), qtype))
+            .query((self.qname.to_name(), self.qtype()))
             .await
     }
 
