@@ -13,17 +13,6 @@ on:
 jobs:
   package:
     uses: NLnetLabs/ploutos/.github/workflows/pkg-rust.yml@v7
-    secrets:
-      DOCKER_HUB_ID: ${{ secrets.DOCKER_HUB_ID }}
-      DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
     with:
-      docker_org: nlnetlabs
-      docker_repo: dnsi
-      docker_build_rules: pkg/rules/docker-images-to-build.yml
-      docker_sanity_check_command: --version
-
       package_build_rules: pkg/rules/packages-to-build.yml
       package_test_scripts_path: pkg/test-scripts/test-<package>.sh
-
-      rpm_scriptlets_path: pkg/rpm/scriptlets.toml
-

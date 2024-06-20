@@ -40,13 +40,5 @@ include:
 
 test-mode:   
   - 'fresh-install'
-  - 'upgrade-from-published'
-
-test-exclude:
-  - pkg: 'dnsi'
-    image: 'rockylinux:9'
-    mode: 'upgrade-from-published'
-  - pkg: 'dnsi'
-    image: 'debian:bookworm'
-    mode: 'upgrade-from-published'
+# - 'upgrade-from-published'
 
