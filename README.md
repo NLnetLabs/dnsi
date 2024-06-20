@@ -22,9 +22,8 @@ for either Debian and Ubuntu or for Red Hat Enterprise Linux (RHEL) and
 compatible systems such as Rocky Linux. 
 
 You can also build `dnsi` from the source code using Cargo, Rust's build
-system and package manager. Cargo lets you to run `dnsi` on almost any
-operating system and CPU architecture. Refer to the [building](#building)
-section to get started.
+system and package manager. Refer to the [building](#building) section to
+get started.
 
 ### Debian
 
