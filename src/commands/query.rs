@@ -55,6 +55,14 @@ pub struct Query {
     #[arg(short, long)]
     udp: bool,
 
+    /// Use TLS.
+    #[arg(long)]
+    tls: bool,
+
+    /// The name of the server for SNI and certificate verification.
+    #[arg(long = "tls-hostname")]
+    tls_hostname: Option<String>,
+
     /// Set the timeout for a query.
     #[arg(long, value_name = "SECONDS")]
     timeout: Option<f32>,
@@ -111,13 +119,30 @@ impl Query {
             .block_on(self.async_execute())
     }
 
-    pub async fn async_execute(self) -> Result<(), Error> {
+    pub async fn async_execute(mut self) -> Result<(), Error> {
         let client = match self.server {
             Some(ServerName::Name(ref host)) => {
+                if self.tls_hostname.is_none() {
+                    self.tls_hostname = Some(host.to_string());
+                }
                 self.host_server(host).await?
             }
-            Some(ServerName::Addr(addr)) => self.addr_server(addr),
-            None => self.system_server(),
+            Some(ServerName::Addr(addr)) => {
+                if self.tls && self.tls_hostname.is_none() {
+                    return Err(
+                        "--tls-hostname is required for TLS transport".into(),
+                    );
+                }
+                self.addr_server(addr)
+            }
+            None => {
+                if self.tls {
+                    return Err(
+                        "--server is required for TLS transport".into()
+                    );
+                }
+                self.system_server()
+            }
         };
 
         let answer = client.request(self.create_request()).await?;
@@ -179,11 +204,21 @@ impl Query {
                 continue;
             }
             servers.push(Server {
-                addr: SocketAddr::new(addr, self.port.unwrap_or(53)),
+                addr: SocketAddr::new(
+                    addr,
+                    self.port.unwrap_or({
+                        if self.tls {
+                            853
+                        } else {
+                            53
+                        }
+                    }),
+                ),
                 transport: self.transport(),
                 timeout: self.timeout(),
                 retries: self.retries.unwrap_or(2),
                 udp_payload_size: self.udp_payload_size.unwrap_or(1232),
+                tls_hostname: self.tls_hostname.clone(),
             });
         }
         Ok(Client::with_servers(servers))
@@ -192,11 +227,15 @@ impl Query {
     /// Resolves a provided server name.
     fn addr_server(&self, addr: IpAddr) -> Client {
         Client::with_servers(vec![Server {
-            addr: SocketAddr::new(addr, self.port.unwrap_or(53)),
+            addr: SocketAddr::new(
+                addr,
+                self.port.unwrap_or(if self.tls { 853 } else { 53 }),
+            ),
             transport: self.transport(),
             timeout: self.timeout(),
             retries: self.retries(),
             udp_payload_size: self.udp_payload_size(),
+            tls_hostname: self.tls_hostname.clone(),
         }])
     }
 
@@ -212,6 +251,7 @@ impl Query {
                     timeout: server.request_timeout,
                     retries: u8::try_from(conf.options.attempts).unwrap_or(2),
                     udp_payload_size: server.udp_payload_size,
+                    tls_hostname: None,
                 })
                 .collect(),
         )
@@ -220,6 +260,8 @@ impl Query {
     fn transport(&self) -> Transport {
         if self.udp {
             Transport::Udp
+        } else if self.tls {
+            Transport::Tls
         } else if self.tcp {
             Transport::Tcp
         } else {
@@ -332,6 +374,7 @@ impl Query {
                 timeout: self.timeout(),
                 retries: self.retries(),
                 udp_payload_size: self.udp_payload_size(),
+                tls_hostname: None,
             })
             .collect())
     }
