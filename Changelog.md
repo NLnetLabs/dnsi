@@ -1,6 +1,8 @@
 # Change Log
 
-## Unreleased next version
+## 0.2.0
+
+Released on 2024-06-20.
 
 Breaking changes
 
@@ -19,8 +21,6 @@ New
 * IP addresses can now be used as the query name of the `query` command.
   They will be translated into the standard reverse pointer names. In this
   case, if no explicit query type is given, `PTR` will be used. ([#25])
-
-Bug fixes
 
 Other changes
 
