@@ -24,12 +24,12 @@ use std::time::Duration;
 #[derive(Clone, Debug, clap::Args)]
 pub struct Query {
     /// The name of the resource records to look up
-    #[arg(value_name = "QUERY_NAME")]
-    qname: Name<Vec<u8>>,
+    #[arg(value_name = "QUERY_NAME_OR_ADDR")]
+    qname: NameOrAddr,
 
     /// The record type to look up
-    #[arg(value_name = "QUERY_TYPE", default_value = "AAAA")]
-    qtype: Rtype,
+    #[arg(value_name = "QUERY_TYPE")]
+    qtype: Option<Rtype>,
 
     /// The server to send the query to. System servers used if missing
     #[arg(short, long, value_name = "ADDR_OR_HOST")]
@@ -90,7 +90,8 @@ impl Query {
     pub fn execute(self) -> Result<(), Error> {
         #[allow(clippy::collapsible_if)] // There may be more later ...
         if !self.force {
-            if self.qtype == Rtype::AXFR || self.qtype == Rtype::IXFR {
+            let qtype = self.qtype();
+            if qtype == Rtype::AXFR || qtype == Rtype::IXFR {
                 return Err(
                     "AXFR and IXFR query types invoke zone transfer which \
                      may result in a sequence\n\
@@ -237,7 +238,7 @@ impl Query {
         res.header_mut().set_rd(!self.no_rd);
 
         let mut res = res.question();
-        res.push((&self.qname, self.qtype)).unwrap();
+        res.push((&self.qname.to_name(), self.qtype())).unwrap();
 
         RequestMessage::new(res)
     }
@@ -252,8 +253,9 @@ impl Query {
             let ns_set = self.get_ns_set(&apex, &resolver).await?;
             self.get_ns_addrs(&ns_set, &resolver).await?
         };
+        let qtype = self.qtype();
         Client::with_servers(servers)
-            .query((&self.qname, self.qtype))
+            .query((self.qname.to_name(), qtype))
             .await
     }
 
@@ -263,7 +265,8 @@ impl Query {
         resolv: &StubResolver,
     ) -> Result<Name<Vec<u8>>, Error> {
         // Ask for the SOA record for the qname.
-        let response = resolv.query((&self.qname, Rtype::SOA)).await?;
+        let qname = self.qname.to_name();
+        let response = resolv.query((&qname, Rtype::SOA)).await?;
 
         // The SOA record is in the answer section if the qname is the apex
         // or in the authority section with the apex as the owner name
@@ -271,8 +274,8 @@ impl Query {
         let mut answer = response.answer()?.limit_to_in::<Soa<_>>();
         if let Some(soa) = answer.next() {
             let soa = soa?;
-            if *soa.owner() == self.qname {
-                return Ok(self.qname.clone());
+            if *soa.owner() == qname {
+                return Ok(qname.clone());
             }
             // Strange SOA in the answer section, let’s continue with
             // the authority section.
@@ -408,6 +411,16 @@ impl Query {
             );
         }
     }
+
+    fn qtype(&self) -> Rtype {
+        match self.qtype {
+            Some(qtype) => qtype,
+            None => match self.qname {
+                NameOrAddr::Addr(_) => Rtype::PTR,
+                NameOrAddr::Name(_) => Rtype::AAAA,
+            },
+        }
+    }
 }
 
 //------------ ServerName ---------------------------------------------------
@@ -426,6 +439,39 @@ impl FromStr for ServerName {
             Ok(ServerName::Addr(addr))
         } else {
             UncertainName::from_str(s)
+                .map(Self::Name)
+                .map_err(|_| "illegal host name")
+        }
+    }
+}
+
+//------------ NameOrAddr ----------------------------------------------------
+
+#[derive(Clone, Debug)]
+enum NameOrAddr {
+    Name(Name<Vec<u8>>),
+    Addr(IpAddr),
+}
+
+impl NameOrAddr {
+    fn to_name(&self) -> Name<Vec<u8>> {
+        match &self {
+            NameOrAddr::Name(host) => host.clone(),
+            NameOrAddr::Addr(addr) => {
+                Name::<Vec<u8>>::reverse_from_addr(*addr).unwrap()
+            }
+        }
+    }
+}
+
+impl FromStr for NameOrAddr {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Ok(addr) = IpAddr::from_str(s) {
+            Ok(NameOrAddr::Addr(addr))
+        } else {
+            Name::from_str(s)
                 .map(Self::Name)
                 .map_err(|_| "illegal host name")
         }
