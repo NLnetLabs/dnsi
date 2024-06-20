@@ -109,14 +109,13 @@ option is missing, the default size of 1232 bytes is used. The value is
 ignored for transport protocols other than UDP.
 
 .TP
-.BR --aa ,\  --no-aa
-Specifies that the "authentic data" flag, or AA flag for short, should be
+.BR --ad ,\  --no-ad
+Specifies that the "authentic data" flag, or AD flag for short, should be
 set or not set in the query. If neither option is given, the flag will not
 be set.
 
-The flag indicates to a resolver that it should try and gather all necessary
-information from their authoritative name servers to create a complete answer
-to the query. This process is called "recursion."
+The flag indicates to a resolver that it should set the AD flag in its
+reply if it is found to be DNSSEC secure.
 
 .TP
 .BR --cd ,\  --no-cd
