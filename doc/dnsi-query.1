@@ -125,9 +125,35 @@ option is missing, the default size of 1232 bytes is used. The value is
 ignored for transport protocols other than UDP.
 
 .TP
-.B --no-rd
-Specifies that the "recursion desired" flag, or RD flag for short, should
-not be set in the query. If this option is missing, the flag will be set.
+.BR --ad ,\  --no-ad
+Specifies that the "authentic data" flag, or AD flag for short, should be
+set or not set in the query. If neither option is given, the flag will not
+be set.
+
+The flag indicates to a resolver that it should set the AD flag in its
+reply if it is found to be DNSSEC secure.
+
+.TP
+.BR --cd ,\  --no-cd
+Specifies that the "checking disabled" flag, or CD flag for short, should be
+set or not set in the query. If neither option is given, the flag will not
+be set.
+
+The flag indicates that the server should not do any DNSSEC validation.
+
+.TP
+.BR --do ,\  --no-do
+Specifies that the "DNSSEC OK" flag, or DO flag for short, should be
+set or not set in the query. If neither option is given, the flag will not
+be set.
+
+The flag indicates that the server should include all DNSSEC-related records
+with the answer.
+
+.TP
+.BR --rd ,\  --no-rd
+Specifies that the "recursion desired" flag, or RD flag for short, should be
+set or not set in the query. If neither option is given, the flag will be set.
 
 The flag indicates to a resolver that it should try and gather all necessary
 information from their authoritative name servers to create a complete answer
