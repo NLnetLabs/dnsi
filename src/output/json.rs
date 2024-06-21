@@ -44,7 +44,10 @@ struct RecordOutput {
     data: String,
 }
 
-pub fn write(answer: &Answer, target: &mut impl io::Write) -> Result<(), OutputError> {
+pub fn write(
+    answer: &Answer,
+    target: &mut impl io::Write,
+) -> Result<(), OutputError> {
     let msg = answer.message();
     let stats = answer.stats();
     let header = msg.header();
@@ -82,9 +85,10 @@ pub fn write(answer: &Answer, target: &mut impl io::Write) -> Result<(), OutputE
         };
 
         for v in [&mut answer, &mut authority, &mut additional] {
-            let iter = section
-                .limit_to::<AllRecordData<_, _>>()
-                .filter(|i| i.as_ref().map_or(true, |i| i.rtype() != Rtype::OPT));
+            let iter =
+                section.limit_to::<AllRecordData<_, _>>().filter(|i| {
+                    i.as_ref().map_or(true, |i| i.rtype() != Rtype::OPT)
+                });
 
             for rec in iter {
                 let Ok(rec) = rec else {

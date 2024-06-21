@@ -11,7 +11,10 @@ use super::error::OutputError;
 
 //------------ write ---------------------------------------------------------
 
-pub fn write(answer: &Answer, target: &mut impl io::Write) -> Result<(), OutputError> {
+pub fn write(
+    answer: &Answer,
+    target: &mut impl io::Write,
+) -> Result<(), OutputError> {
     let msg = answer.msg_slice();
 
     // Header
@@ -55,14 +58,28 @@ pub fn write(answer: &Answer, target: &mut impl io::Write) -> Result<(), OutputE
                     Dau(dau) => writeln!(target, "; DAU: {}", dau)?,
                     Dhu(dhu) => writeln!(target, "; DHU: {}", dhu)?,
                     N3u(n3u) => writeln!(target, "; N3U: {}", n3u)?,
-                    Expire(expire) => writeln!(target, "; EXPIRE: {}", expire)?,
-                    TcpKeepalive(opt) => writeln!(target, "; TCPKEEPALIVE: {}", opt)?,
-                    Padding(padding) => writeln!(target, "; PADDING: {}", padding)?,
-                    ClientSubnet(opt) => writeln!(target, "; CLIENTSUBNET: {}", opt)?,
-                    Cookie(cookie) => writeln!(target, "; COOKIE: {}", cookie)?,
+                    Expire(expire) => {
+                        writeln!(target, "; EXPIRE: {}", expire)?
+                    }
+                    TcpKeepalive(opt) => {
+                        writeln!(target, "; TCPKEEPALIVE: {}", opt)?
+                    }
+                    Padding(padding) => {
+                        writeln!(target, "; PADDING: {}", padding)?
+                    }
+                    ClientSubnet(opt) => {
+                        writeln!(target, "; CLIENTSUBNET: {}", opt)?
+                    }
+                    Cookie(cookie) => {
+                        writeln!(target, "; COOKIE: {}", cookie)?
+                    }
                     Chain(chain) => writeln!(target, "; CHAIN: {}", chain)?,
-                    KeyTag(keytag) => writeln!(target, "; KEYTAG: {}", keytag)?,
-                    ExtendedError(extendederror) => writeln!(target, "; EDE: {}", extendederror)?,
+                    KeyTag(keytag) => {
+                        writeln!(target, "; KEYTAG: {}", keytag)?
+                    }
+                    ExtendedError(extendederror) => {
+                        writeln!(target, "; EDE: {}", extendederror)?
+                    }
                     Other(other) => {
                         writeln!(target, "; {}", other.code())?;
                     }

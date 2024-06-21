@@ -3,7 +3,9 @@
 use domain::base::iana::Rtype;
 use domain::base::opt::{AllOptData, OptRecord};
 use domain::base::wire::ParseError;
-use domain::base::{Header, HeaderCounts, Message, ParsedRecord, QuestionSection};
+use domain::base::{
+    Header, HeaderCounts, Message, ParsedRecord, QuestionSection,
+};
 use domain::rdata::AllRecordData;
 use std::io;
 
@@ -14,7 +16,10 @@ use crate::client::Answer;
 
 use super::table_writer::TableWriter;
 
-pub fn write(answer: &Answer, target: &mut impl io::Write) -> Result<(), OutputError> {
+pub fn write(
+    answer: &Answer,
+    target: &mut impl io::Write,
+) -> Result<(), OutputError> {
     let msg = answer.msg_slice();
 
     let header = msg.header();
@@ -51,7 +56,9 @@ pub fn write(answer: &Answer, target: &mut impl io::Write) -> Result<(), OutputE
         writeln!(target, "\n{BOLD}ADDITIONAL SECTION{RESET}")?;
         write_answer_table(
             target,
-            section.filter(|item| item.as_ref().map_or(true, |i| i.rtype() != Rtype::OPT)),
+            section.filter(|item| {
+                item.as_ref().map_or(true, |i| i.rtype() != Rtype::OPT)
+            }),
         )?;
     }
 
@@ -93,7 +100,10 @@ fn write_header(
     Ok(())
 }
 
-fn write_opt(target: &mut impl io::Write, opt: &OptRecord<&[u8]>) -> Result<(), OutputError> {
+fn write_opt(
+    target: &mut impl io::Write,
+    opt: &OptRecord<&[u8]>,
+) -> Result<(), OutputError> {
     writeln!(target, "\n{BOLD}OPT PSEUDOSECTION{RESET}")?;
 
     let mut rows = Vec::new();
@@ -124,7 +134,9 @@ fn write_opt(target: &mut impl io::Write, opt: &OptRecord<&[u8]>) -> Result<(), 
                 Cookie(cookie) => ("COOKIE: {}", cookie.to_string()),
                 Chain(chain) => ("CHAIN", chain.to_string()),
                 KeyTag(keytag) => ("KEYTAG", keytag.to_string()),
-                ExtendedError(extendederror) => ("EDE", extendederror.to_string()),
+                ExtendedError(extendederror) => {
+                    ("EDE", extendederror.to_string())
+                }
                 Other(other) => ("OTHER", other.code().to_string()),
                 _ => ("ERROR", "Unknown OPT".to_string()),
             },
@@ -225,7 +237,11 @@ fn write_stats(
         ],
         [
             "Server:".into(),
-            format!("{}#{}", stats.server_addr.ip(), stats.server_addr.port()),
+            format!(
+                "{}#{}",
+                stats.server_addr.ip(),
+                stats.server_addr.port()
+            ),
         ],
         ["Protocol:".into(), stats.server_proto.to_string()],
         [

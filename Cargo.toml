@@ -1,6 +1,6 @@
 [package]
 name = "dnsi"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.78.0"
 authors = ["NLnet Labs <dns-team@nlnetlabs.nl>"]
@@ -13,11 +13,24 @@ license = "BSD-3-Clause"
 exclude = [ ".github", ".gitignore" ]
 
 [dependencies]
-bytes      = "1"
-clap       = { version = "4", features = ["derive", "unstable-doc"] }
-chrono     = { version = "0.4.38", features = [ "alloc", "clock", "serde" ] }
-domain     = { version = "0.10.0", features = ["resolv", "unstable-client-transport", "serde"] }
-tempfile   = "3.1.0"
-tokio      = { version = "1.33", features = ["rt-multi-thread"] }
-serde_json = { version = "1.0.117", features = ["preserve_order"] }
-serde      = "1.0.202"
+bytes        = "1"
+chrono       = { version = "0.4.38", features = [ "alloc", "clock", "serde" ] }
+clap         = { version = "4", features = ["derive", "unstable-doc"] }
+domain       = { version = "0.10", features = ["resolv", "unstable-client-transport", "serde"]}
+serde        = { version = "1.0.202", features = ["derive"] }
+serde_json   = { version = "1.0.117", features = ["preserve_order"] }
+tempfile     = "3.1.0"
+tokio        = { version = "1.33", features = ["rt-multi-thread"] }
+tokio-rustls = { version = "0.26.0", default-features = false, features = [ "ring", "logging", "tls12" ] }
+webpki-roots = "0.26.3"
+
+[package.metadata.deb]
+extended-description = """\
+The dnsi utility is a command line tool for investigating various \
+aspects of the DNS."""
+
+[package.metadata.generate-rpm]
+license = "BSD"
+assets = [
+  { source = "target/release/dnsi", dest = "/usr/bin/dnsi", mode = "755" },
+]

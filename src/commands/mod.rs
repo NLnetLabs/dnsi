@@ -1,12 +1,10 @@
 //! The various commands of _idns._
 
 pub mod help;
-pub mod query;
 pub mod lookup;
-
+pub mod query;
 
 use super::error::Error;
-
 
 #[derive(Clone, Debug, clap::Subcommand)]
 pub enum Command {
@@ -29,4 +27,3 @@ impl Command {
         }
     }
 }
-

@@ -3,7 +3,7 @@
 mod ansi;
 mod dig;
 mod error;
-mod human;
+mod friendly;
 mod json;
 mod rfc8427;
 mod table;
@@ -21,8 +21,10 @@ use std::io;
 pub enum OutputFormat {
     /// Similar to dig.
     Dig,
+
     /// Easily readable, formatted with ANSI codes and whitespace
-    Human,
+    Friendly,
+
     /// Short readable format
     Table,
     /// Simple JSON format
@@ -33,15 +35,19 @@ pub enum OutputFormat {
 
 #[derive(Clone, Debug, Parser)]
 pub struct OutputOptions {
-    #[arg(long = "format", default_value = "dig")]
+    #[arg(long = "format", default_value = "friendly")]
     pub format: OutputFormat,
 }
 
 impl OutputFormat {
-    pub fn write(self, msg: &Answer, target: &mut impl io::Write) -> Result<(), io::Error> {
+    pub fn write(
+        self,
+        msg: &Answer,
+        target: &mut impl io::Write,
+    ) -> Result<(), io::Error> {
         let res = match self {
             Self::Dig => self::dig::write(msg, target),
-            Self::Human => self::human::write(msg, target),
+            Self::Friendly => self::friendly::write(msg, target),
             Self::Table => self::table::write(msg, target),
             Self::Json => self::json::write(msg, target),
             Self::RFC8427 => self::rfc8427::write(msg, target),

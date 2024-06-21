@@ -1,0 +1,18 @@
+name: Packaging
+
+on:
+  # Since this workflow is quite costly, we only run it automatically on
+  # release tags. Otherwise trigger it manually.
+  push:
+    tags:
+      - v*
+
+  # Allow manually triggering the workflow.
+  workflow_dispatch:
+
+jobs:
+  package:
+    uses: NLnetLabs/ploutos/.github/workflows/pkg-rust.yml@v7
+    with:
+      package_build_rules: pkg/rules/packages-to-build.yml
+      package_test_scripts_path: pkg/test-scripts/test-<package>.sh
