@@ -2,13 +2,10 @@
 
 mod ansi;
 mod dig;
-mod json;
-mod rfc8427;
-
-use std::io;
-use clap::ValueEnum;
 mod error;
 mod human;
+mod json;
+mod rfc8427;
 mod table;
 mod table_writer;
 mod ttl;

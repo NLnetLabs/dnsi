@@ -17,13 +17,16 @@ use serde_json::{json, Map, Value};
 use crate::client::Answer;
 use std::io;
 
-pub fn write(answer: &Answer, mut target: impl io::Write) -> Result<(), io::Error> {
+use super::error::OutputError;
+
+pub fn write(answer: &Answer, mut target: &mut impl io::Write) -> Result<(), OutputError> {
     let mut map = serde_json::Map::new();
 
     fill_map(&mut map, answer);
 
     serde_json::to_writer_pretty(&mut target, &map).unwrap();
-    writeln!(target)
+    writeln!(target)?;
+    Ok(())
 }
 
 fn fill_map(map: &mut Map<String, Value>, answer: &Answer) {
@@ -116,44 +119,44 @@ fn fill_map(map: &mut Map<String, Value>, answer: &Answer) {
 
     insert(map, "questionRRs", rrs);
 
-    let Ok(section) = questions.next_section() else {
-        return;
-    };
+    let section = questions.next_section().ok();
 
     let mut rrs = Vec::new();
-    for a in section.flatten() {
-        let mut rr = Map::new();
-        record_map(&mut rr, a);
-        rrs.push(rr)
+    if let Some(section) = section {
+        for a in section.into_iter().flatten() {
+            let mut rr = Map::new();
+            record_map(&mut rr, a);
+            rrs.push(rr)
+        }
     }
 
     insert(map, "answerRRs", rrs);
 
-    let Ok(Some(section)) = section.next_section() else {
-        return;
-    };
+    let section = section.and_then(|s| s.next_section().ok()).flatten();
 
     let mut rrs = Vec::new();
-    for a in section.flatten() {
-        let mut rr = Map::new();
-        record_map(&mut rr, a);
-        rrs.push(rr)
+    if let Some(section) = section {
+        for a in section.flatten() {
+            let mut rr = Map::new();
+            record_map(&mut rr, a);
+            rrs.push(rr)
+        }
     }
 
     insert(map, "authorityRRs", rrs);
 
-    let Ok(Some(section)) = section.next_section() else {
-        return;
-    };
+    let section = section.and_then(|s| s.next_section().ok()).flatten();
 
     let mut rrs = Vec::new();
-    for a in section.flatten() {
-        if a.rtype() == Rtype::OPT {
-            continue;
+    if let Some(section) = section {
+        for a in section.flatten() {
+            if a.rtype() == Rtype::OPT {
+                continue;
+            }
+            let mut rr = Map::new();
+            record_map(&mut rr, a);
+            rrs.push(rr)
         }
-        let mut rr = Map::new();
-        record_map(&mut rr, a);
-        rrs.push(rr)
     }
 
     insert(map, "additionalRRs", rrs);
@@ -196,7 +199,7 @@ fn record_map(rr: &mut Map<String, Value>, r: ParsedRecord<&[u8]>) {
 
     insert(rr, "TTL", r.ttl().as_secs());
 
-    if let Ok(Some(rec)) = r.to_record::<AllRecordData<&[u8], ParsedName<&[u8]>>>() {
+    if let Ok(rec) = r.to_any_record::<AllRecordData<&[u8], ParsedName<&[u8]>>>() {
         let ty = rtype_mnemomic(rec.rtype()).unwrap();
         let data = rec.data().to_string();
         insert(rr, format!("rdata{ty}"), data);
@@ -297,11 +300,7 @@ fn edns_map(map: &mut Map<String, Value>, opt: &OptRecord<&[u8]>, header: Header
                 }),
             ),
             ClientSubnet(subnet) => insert(map, "ECS", subnet.to_string()),
-            Other(opt) => insert(
-                map,
-                format!("OPT{}", opt.code()),
-                hex(opt.as_slice())
-            ),
+            Other(opt) => insert(map, format!("OPT{}", opt.code()), hex(opt.as_slice())),
             _ => {}
         }
     }

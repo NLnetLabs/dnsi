@@ -1,13 +1,11 @@
 use crate::client::{Answer, Stats};
-use domain::{
-    base::{
-        iana::{Class, Opcode},
-        Rtype, Ttl,
-    },
-    rdata::AllRecordData,
-};
+use domain::base::iana::{Class, Opcode};
+use domain::base::{Rtype, Ttl};
+use domain::rdata::AllRecordData;
 use serde::Serialize;
 use std::io;
+
+use super::error::OutputError;
 
 #[derive(Serialize)]
 struct AnswerOuput {
@@ -46,7 +44,7 @@ struct RecordOutput {
     data: String,
 }
 
-pub fn write(answer: &Answer, target: &mut impl io::Write) -> Result<(), io::Error> {
+pub fn write(answer: &Answer, target: &mut impl io::Write) -> Result<(), OutputError> {
     let msg = answer.message();
     let stats = answer.stats();
     let header = msg.header();
@@ -67,7 +65,7 @@ pub fn write(answer: &Answer, target: &mut impl io::Write) -> Result<(), io::Err
 
         for rec in section.limit_to::<AllRecordData<_, _>>() {
             let Ok(rec) = rec else {
-                break 'outer;
+                break;
             };
 
             answer.push(RecordOutput {
