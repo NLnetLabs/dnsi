@@ -8,7 +8,12 @@ New
 
 Bug fixes
 
+* Actually made `friendly` the default output format for the `query`
+  command. ([#29])
+
 Other changes
+
+[#29]: https://github.com/NLnetLabs/dnsi/pull/29
 
 
 ## 0.2.0
