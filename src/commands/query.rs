@@ -2,7 +2,7 @@
 
 use crate::client::{Answer, Client, Server, Transport};
 use crate::error::Error;
-use crate::output::OutputFormat;
+use crate::output::OutputOptions;
 use bytes::Bytes;
 use domain::base::iana::{Class, Rtype};
 use domain::base::message::Message;
@@ -123,9 +123,9 @@ pub struct Query {
     #[arg(long)]
     verify: bool,
 
-    /// Select the output format.
-    #[arg(long = "format", default_value = "dig")]
-    output_format: OutputFormat,
+    /// Output options.
+    #[command(flatten)]
+    output: OutputOptions,
 }
 
 /// # Executing the command
@@ -182,7 +182,7 @@ impl Query {
         };
 
         let answer = client.request(self.create_request()).await?;
-        self.output_format.print(&answer)?;
+        self.output.format.print(&answer)?;
         if self.verify {
             let auth_answer = self.auth_answer().await?;
             if let Some(diff) =

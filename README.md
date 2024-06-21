@@ -14,6 +14,9 @@ The tool contains a number of commands. Currently, these are:
   names for IP addresses,
 * `dnsi help` displays the man page for any command.
 
+There are many options for each command. To learn more about them, use 
+`--help` for a complete overview, or `-h` for a summary, e.g. 
+`dnsi query --help`. 
 
 ## Binary Packages
 
@@ -171,7 +174,7 @@ provides an overview of the various support levels.
 ### Installing Rust
 
 While some system distributions include Rust as system packages, `dnsi`
-relies on a relatively new version of Rust, currently 1.74 or newer.
+relies on a relatively new version of Rust, currently 1.78 or newer.
 We therefore suggest to use the canonical Rust installation via a tool called
 `rustup`.
 
