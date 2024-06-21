@@ -1,6 +1,7 @@
 use crate::client::{Answer, Stats};
+use bytes::Bytes;
 use domain::base::iana::{Class, Opcode};
-use domain::base::{Rtype, Ttl};
+use domain::base::{ParsedName, Rtype, Ttl};
 use domain::rdata::AllRecordData;
 use serde::Serialize;
 use std::io;
@@ -41,7 +42,7 @@ struct RecordOutput {
     class: Class,
     r#type: Rtype,
     ttl: Ttl,
-    data: String,
+    data: AllRecordData<Bytes, ParsedName<Bytes>>,
 }
 
 pub fn write(
@@ -76,7 +77,7 @@ pub fn write(
                 class: rec.class(),
                 r#type: rec.rtype(),
                 ttl: rec.ttl(),
-                data: rec.data().to_string(),
+                data: rec.data().clone(),
             });
         }
 
@@ -85,10 +86,7 @@ pub fn write(
         };
 
         for v in [&mut answer, &mut authority, &mut additional] {
-            let iter =
-                section.limit_to::<AllRecordData<_, _>>().filter(|i| {
-                    i.as_ref().map_or(true, |i| i.rtype() != Rtype::OPT)
-                });
+            let iter = section.limit_to::<AllRecordData<_, _>>();
 
             for rec in iter {
                 let Ok(rec) = rec else {
@@ -100,7 +98,7 @@ pub fn write(
                     class: rec.class(),
                     r#type: rec.rtype(),
                     ttl: rec.ttl(),
-                    data: rec.data().to_string(),
+                    data: rec.data().clone(),
                 });
             }
 
