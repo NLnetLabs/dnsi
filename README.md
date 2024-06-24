@@ -1,10 +1,17 @@
 # dnsi – A tool to investigate the DNS
 
 `dnsi` is a command line tool to investigate various aspects of the
-Domain Name System (DNS).
+Domain Name System (DNS). It is developed as part of the 
+[`domain` project](https://github.com/NLnetLabs/domain) and has our 
+long-term commitment. 
 
-It is currently in a very early state and will expand over the coming
-months.
+`dnsi` is currently in an early state and will expand over the coming
+months. Please don't hesitate to contribute by opening a pull-request,
+or submit a feature request by opening a
+[GitHub issue](https://github.com/NLnetLabs/dnsi/issues), or by reaching
+out via [Mastodon](https://fosstodon.org/@nlnetlabs/) or 
+[email](mailto:dns-team@nlnetlabs.nl).
+
 
 The tool contains a number of commands. Currently, these are:
 
@@ -14,8 +21,8 @@ The tool contains a number of commands. Currently, these are:
   names for IP addresses,
 * `dnsi help` displays the man page for any command.
 
-There are many options for each command. To learn more about them, use 
-`--help` for a complete overview, or `-h` for a summary, e.g. 
+There are many options for each command. To learn more about them, you 
+can use `--help` for a complete overview, or `-h` for a summary, e.g. 
 `dnsi query --help`. 
 
 ## Binary Packages
