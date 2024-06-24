@@ -10,7 +10,7 @@ months. Please don't hesitate to contribute by opening a pull-request,
 or submit a feature request by opening a
 [GitHub issue](https://github.com/NLnetLabs/dnsi/issues), or by reaching
 out via [Mastodon](https://fosstodon.org/@nlnetlabs/) or 
-[email](mailto:dnsteam@nlnetlabs.nl).
+[email](mailto:dns-team@nlnetlabs.nl).
 
 
 The tool contains a number of commands. Currently, these are:
