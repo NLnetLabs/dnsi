@@ -129,7 +129,16 @@ fn write_opt(
                 N3u(n3u) => ("N3U", n3u.to_string()),
                 Expire(expire) => ("EXPIRE", expire.to_string()),
                 TcpKeepalive(opt) => ("TCPKEEPALIVE", opt.to_string()),
-                Padding(padding) => ("PADDING", padding.to_string()),
+                Padding(padding) => {
+                    let padding  = padding.as_slice();
+                    let len = padding.len();
+                    let all_zero = if padding.iter().all(|b| *b == 0) {
+                        "all zero"
+                    } else {
+                        "non-zero"
+                    };
+                    ("PADDING", format!("{len} bytes ({all_zero})"))
+                }
                 ClientSubnet(opt) => ("CLIENTSUBNET", opt.to_string()),
                 Cookie(cookie) => ("COOKIE: {}", cookie.to_string()),
                 Chain(chain) => ("CHAIN", chain.to_string()),
