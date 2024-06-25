@@ -35,8 +35,11 @@ impl<const N: usize> TableWriter<'_, N> {
             right_aligned,
         } = self;
 
+        // This contains the widths of all the columns, which we need to
+        // print everything with the correct alignment.
         let mut widths = [0; N];
 
+        // The header contributes to the widths only if its present.
         if let Some(header) = header {
             for i in 0..N {
                 widths[i] = header[i].len();
@@ -72,7 +75,10 @@ impl<const N: usize> TableWriter<'_, N> {
         }
 
         for row in *rows {
+            // First we write the indent of the entire table
             write!(target, "{indent}")?;
+
+            // Print every cell in this row **except** the last cell
             for &i in &columns[..columns.len() - 1] {
                 if right_aligned[i] {
                     write!(target, "{:>width$}", row[i], width = widths[i])?;
@@ -81,6 +87,10 @@ impl<const N: usize> TableWriter<'_, N> {
                 }
                 write!(target, "{spacing}")?;
             }
+
+            // The last cell in the row is printed separately, because it
+            // doesn't need spacing. It also does not need padding if it is
+            // left-aligned.
             let last = columns[columns.len() - 1];
             if right_aligned[last] {
                 write!(
@@ -90,13 +100,11 @@ impl<const N: usize> TableWriter<'_, N> {
                     width = widths[last]
                 )?;
             } else {
-                write!(
-                    target,
-                    "{:<width$}",
-                    row[last],
-                    width = widths[last]
-                )?;
+                // It's the last cell; no padding needed
+                write!(target, "{}", row[last],)?;
             }
+
+            // Print a newline
             writeln!(target)?;
         }
 
