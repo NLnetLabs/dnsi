@@ -4,6 +4,8 @@ mod ansi;
 mod dig;
 mod error;
 mod friendly;
+mod json;
+mod rfc8427;
 mod table;
 mod table_writer;
 mod ttl;
@@ -25,6 +27,10 @@ pub enum OutputFormat {
 
     /// Short readable format
     Table,
+    /// Simple JSON format
+    Json,
+    /// JSON based on RFC 8427
+    RFC8427,
 }
 
 #[derive(Clone, Debug, Parser)]
@@ -43,6 +49,8 @@ impl OutputFormat {
             Self::Dig => self::dig::write(msg, target),
             Self::Friendly => self::friendly::write(msg, target),
             Self::Table => self::table::write(msg, target),
+            Self::Json => self::json::write(msg, target),
+            Self::RFC8427 => self::rfc8427::write(msg, target),
         };
         match res {
             Ok(()) => Ok(()),
