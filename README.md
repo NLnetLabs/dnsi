@@ -42,7 +42,6 @@ Debian versions:
 
 -  Debian Bookworm 12
 -  Debian Bullseye 11
--  Debian Buster 10
 
 Packages for the `amd64` and  `x86_64` architectures are available for
 all listed versions. In addition, we offer `armhf` architecture
@@ -96,7 +95,6 @@ Ubuntu versions:
 
 - Ubuntu Jammy 22.04 (LTS)
 - Ubuntu Focal 20.04 (LTS)
-- Ubuntu Bionic 18.04 (LTS)
 
 Packages are available for the `amd64`/`x86_64` architecture only.
 
@@ -144,7 +142,7 @@ sudo apt install dnsi
 
 ### RHEL and compatible systems
 
-To install the `dnsi` package, you need Red Hat Enterprise Linux (RHEL) 7,
+To install the `dnsi` package, you need Red Hat Enterprise Linux (RHEL)
 8 or 9, or compatible operating system such as Rocky Linux. Packages are
 available for the `amd64`/`x86_64` architecture only.
 
