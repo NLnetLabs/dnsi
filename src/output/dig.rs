@@ -6,6 +6,7 @@ use domain::base::opt::AllOptData;
 use domain::base::ParsedRecord;
 use domain::rdata::AllRecordData;
 use std::io;
+use std::time::Duration;
 
 use super::error::OutputError;
 
@@ -46,7 +47,7 @@ pub fn write(
             target,
             "; EDNS: version {}; flags: {}; udp: {}",
             opt.version(),
-            opt.dnssec_ok(),
+            if opt.dnssec_ok() { "do" } else { "" },
             opt.udp_payload_size()
         )?;
         for option in opt.opt().iter::<AllOptData<_, _>>() {
@@ -61,9 +62,14 @@ pub fn write(
                     Expire(expire) => {
                         writeln!(target, "; EXPIRE: {}", expire)?
                     }
-                    TcpKeepalive(opt) => {
-                        writeln!(target, "; TCPKEEPALIVE: {}", opt)?
-                    }
+                    TcpKeepalive(opt) => writeln!(
+                        target,
+                        "; TCPKEEPALIVE: {} secs",
+                        opt.timeout().map_or("".to_string(), |t| format!(
+                            "{:.1}",
+                            Duration::from(t).as_secs_f64()
+                        ))
+                    )?,
                     Padding(padding) => {
                         writeln!(target, "; PADDING: {}", padding)?
                     }
@@ -95,10 +101,10 @@ pub fn write(
     // Question
     let questions = msg.question();
     if counts.qdcount() > 0 {
-        write!(target, ";; QUESTION SECTION:")?;
+        writeln!(target, ";; QUESTION SECTION:")?;
         for item in questions {
             let item = item?;
-            writeln!(target, "; {}", item)?;
+            writeln!(target, ";{}", item)?;
         }
     }
 
