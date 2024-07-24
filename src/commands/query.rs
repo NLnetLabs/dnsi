@@ -28,7 +28,7 @@ pub struct Query {
     qname: NameOrAddr,
 
     /// The record type to look up
-    #[arg(value_name = "QUERY_TYPE")]
+    #[arg(value_name = "QUERY_TYPE", default_value = "AAAA or PTR")]
     qtype: Option<Rtype>,
 
     /// The server to send the query to. System servers used if missing
