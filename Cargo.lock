@@ -282,14 +282,14 @@ dependencies = [
 [[package]]
 name = "domain"
 version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7eefe29e8dd614abbee51a1616654cab123c4c56850ab83f5b7f1e1f9977bf7c"
+source = "git+https://github.com/NLnetLabs/domain?branch=xfr#c07c769024f466f95125958270ab40a75ca6f7ab"
 dependencies = [
  "bytes",
  "futures-util",
  "moka",
  "octseq",
  "rand",
+ "ring",
  "smallvec",
  "time",
  "tokio",
@@ -551,9 +551,8 @@ dependencies = [
 
 [[package]]
 name = "octseq"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ed2eaec452d98ccc1c615dd843fd039d9445f2fb4da114ee7e6af5fcb68be98"
+version = "0.5.2-dev"
+source = "git+https://github.com/NLnetLabs/octseq.git?rev=3f7797f4274af0a52e66105250ee1186ff2ab6ac#3f7797f4274af0a52e66105250ee1186ff2ab6ac"
 dependencies = [
  "bytes",
  "smallvec",

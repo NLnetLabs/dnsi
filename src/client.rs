@@ -8,11 +8,15 @@ use domain::base::message_builder::MessageBuilder;
 use domain::base::name::ToName;
 use domain::base::question::Question;
 use domain::net::client::protocol::UdpConnect;
-use domain::net::client::request::{RequestMessage, SendRequest};
-use domain::net::client::{dgram, stream};
+use domain::net::client::request::{
+    ComposeRequest, GetResponse, RequestMessage, SendRequest,
+};
+use domain::net::client::{dgram, stream, tsig, xfr};
 use domain::resolv::stub::conf;
+use domain::tsig::Key;
 use std::fmt;
 use std::net::SocketAddr;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpStream;
@@ -53,6 +57,7 @@ impl Client {
     pub async fn query<N: ToName, Q: Into<Question<N>>>(
         &self,
         question: Q,
+        tsig_key: Option<Key>,
     ) -> Result<Answer, Error> {
         let mut res = MessageBuilder::new_vec();
 
@@ -62,16 +67,20 @@ impl Client {
         let mut res = res.question();
         res.push(question.into()).unwrap();
 
-        self.request(RequestMessage::new(res)).await
+        self.request(RequestMessage::new(res), tsig_key).await
     }
 
     pub async fn request(
         &self,
         request: RequestMessage<Vec<u8>>,
+        tsig_key: Option<Key>,
     ) -> Result<Answer, Error> {
         let mut servers = self.servers.as_slice();
         while let Some((server, tail)) = servers.split_first() {
-            match self.request_server(request.clone(), server).await {
+            match self
+                .request_server(request.clone(), tsig_key.clone(), server)
+                .await
+            {
                 Ok(answer) => return Ok(answer),
                 Err(err) => {
                     if tail.is_empty() {
@@ -87,24 +96,56 @@ impl Client {
     pub async fn request_server(
         &self,
         request: RequestMessage<Vec<u8>>,
+        tsig_key: Option<Key>,
         server: &Server,
     ) -> Result<Answer, Error> {
         match server.transport {
-            Transport::Udp => self.request_udp(request, server).await,
-            Transport::UdpTcp => self.request_udptcp(request, server).await,
-            Transport::Tcp => self.request_tcp(request, server).await,
-            Transport::Tls => self.request_tls(request, server).await,
+            Transport::Udp => {
+                self.request_udp(request, tsig_key, server).await
+            }
+            Transport::UdpTcp => {
+                self.request_udptcp(request, tsig_key, server).await
+            }
+            Transport::Tcp => {
+                self.request_tcp(request, tsig_key, server).await
+            }
+            Transport::Tls => {
+                self.request_tls(request, tsig_key, server).await
+            }
         }
+    }
+
+    async fn finalize_request(
+        mut send_request: Box<dyn GetResponse>,
+        mut stats: Stats,
+        streaming: bool,
+    ) -> Result<Answer, Error> {
+        let mut msgs = Vec::with_capacity(1);
+        while !send_request.is_stream_complete() {
+            msgs.push(send_request.get_response().await?);
+            if !streaming {
+                break;
+            }
+        }
+        stats.finalize();
+        Ok(Answer {
+            msgs,
+            stats,
+            cur_idx: Default::default(),
+        })
     }
 
     pub async fn request_udptcp(
         &self,
         request: RequestMessage<Vec<u8>>,
+        tsig_key: Option<Key>,
         server: &Server,
     ) -> Result<Answer, Error> {
-        let answer = self.request_udp(request.clone(), server).await?;
-        if answer.message.header().tc() {
-            self.request_tcp(request, server).await
+        let answer = self
+            .request_udp(request.clone(), tsig_key.clone(), server)
+            .await?;
+        if answer.message().header().tc() {
+            self.request_tcp(request, tsig_key, server).await
         } else {
             Ok(answer)
         }
@@ -113,38 +154,45 @@ impl Client {
     pub async fn request_udp(
         &self,
         request: RequestMessage<Vec<u8>>,
+        tsig_key: Option<Key>,
         server: &Server,
     ) -> Result<Answer, Error> {
-        let mut stats = Stats::new(server.addr, Protocol::Udp);
+        let stats = Stats::new(server.addr, Protocol::Udp);
         let conn = dgram::Connection::with_config(
             UdpConnect::new(server.addr),
             Self::dgram_config(server),
         );
-        let message = conn.send_request(request).get_response().await?;
-        stats.finalize();
-        Ok(Answer { message, stats })
+        let conn =
+            tsig::Connection::new(tsig_key, xfr::Connection::new(conn));
+        let streaming = request.is_streaming();
+        let send_request = conn.send_request(request);
+        Self::finalize_request(send_request, stats, streaming).await
     }
 
     pub async fn request_tcp(
         &self,
         request: RequestMessage<Vec<u8>>,
+        tsig_key: Option<Key>,
         server: &Server,
     ) -> Result<Answer, Error> {
-        let mut stats = Stats::new(server.addr, Protocol::Tcp);
+        let stats = Stats::new(server.addr, Protocol::Tcp);
         let socket = TcpStream::connect(server.addr).await?;
         let (conn, tran) = stream::Connection::with_config(
             socket,
             Self::stream_config(server),
         );
+        let conn =
+            tsig::Connection::new(tsig_key, xfr::Connection::new(conn));
         tokio::spawn(tran.run());
-        let message = conn.send_request(request).get_response().await?;
-        stats.finalize();
-        Ok(Answer { message, stats })
+        let streaming = request.is_streaming();
+        let send_request = conn.send_request(request);
+        Self::finalize_request(send_request, stats, streaming).await
     }
 
     pub async fn request_tls(
         &self,
         request: RequestMessage<Vec<u8>>,
+        tsig_key: Option<Key>,
         server: &Server,
     ) -> Result<Answer, Error> {
         let root_store = RootCertStore {
@@ -156,7 +204,7 @@ impl Client {
                 .with_no_client_auth(),
         );
 
-        let mut stats = Stats::new(server.addr, Protocol::Tls);
+        let stats = Stats::new(server.addr, Protocol::Tls);
         let tcp_socket = TcpStream::connect(server.addr).await?;
         let tls_connector = tokio_rustls::TlsConnector::from(client_config);
         let server_name = server
@@ -174,10 +222,12 @@ impl Client {
             tls_socket,
             Self::stream_config(server),
         );
+        let conn =
+            tsig::Connection::new(tsig_key, xfr::Connection::new(conn));
         tokio::spawn(tran.run());
-        let message = conn.send_request(request).get_response().await?;
-        stats.finalize();
-        Ok(Answer { message, stats })
+        let streaming = request.is_streaming();
+        let send_request = conn.send_request(request);
+        Self::finalize_request(send_request, stats, streaming).await
     }
 
     fn dgram_config(server: &Server) -> dgram::Config {
@@ -230,8 +280,9 @@ impl From<conf::Transport> for Transport {
 
 /// An answer for a query.
 pub struct Answer {
-    message: Message<Bytes>,
+    msgs: Vec<Message<Bytes>>,
     stats: Stats,
+    cur_idx: AtomicUsize,
 }
 
 impl Answer {
@@ -240,17 +291,22 @@ impl Answer {
     }
 
     pub fn message(&self) -> &Message<Bytes> {
-        &self.message
+        &self.msgs[self.cur_idx.load(Ordering::SeqCst)]
     }
 
     pub fn msg_slice(&self) -> Message<&[u8]> {
-        self.message.for_slice_ref()
+        self.msgs[self.cur_idx.load(Ordering::SeqCst)].for_slice_ref()
+    }
+
+    pub fn has_next(&self) -> bool {
+        let old_cur_idx = self.cur_idx.fetch_add(1, Ordering::SeqCst);
+        (old_cur_idx + 1) < self.msgs.len()
     }
 }
 
 impl AsRef<Message<Bytes>> for Answer {
     fn as_ref(&self) -> &Message<Bytes> {
-        &self.message
+        &self.msgs[self.cur_idx.load(Ordering::SeqCst)]
     }
 }
 

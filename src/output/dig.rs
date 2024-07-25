@@ -109,6 +109,14 @@ pub fn write(
         for item in section {
             write_record_item(target, &item?)?;
         }
+
+        while answer.has_next() {
+            let msg = &mut answer.msg_slice();
+            let section = msg.answer().unwrap();
+            for item in section {
+                write_record_item(target, &item?)?;
+            }
+        }
     }
 
     // Authority

@@ -13,6 +13,8 @@ use domain::net::client::request::{ComposeRequest, RequestMessage};
 use domain::rdata::{AllRecordData, Ns, Soa};
 use domain::resolv::stub::conf::ResolvConf;
 use domain::resolv::stub::StubResolver;
+use domain::tsig::{Algorithm, Key, KeyName};
+use domain::utils::base64;
 use std::collections::HashSet;
 use std::fmt;
 use std::net::{IpAddr, SocketAddr};
@@ -28,7 +30,7 @@ pub struct Query {
     qname: NameOrAddr,
 
     /// The record type to look up
-    #[arg(value_name = "QUERY_TYPE")]
+    #[arg(value_name = "QUERY_TYPE", default_value = "AAAA or PTR")]
     qtype: Option<Rtype>,
 
     /// The server to send the query to. System servers used if missing
@@ -114,6 +116,10 @@ pub struct Query {
     #[arg(long = "no-rd")]
     no_rd: bool,
 
+    /// TSIG signing key to use: <name>:[<alg>]:<base64 key>
+    #[arg(long = "tsig-key")]
+    tsig_key: Option<String>,
+
     // No need to set the TC flag in the request.
     /// Disable all sanity checks.
     #[arg(long, short = 'f')]
@@ -181,7 +187,13 @@ impl Query {
             }
         };
 
-        let answer = client.request(self.create_request()).await?;
+        let tsig_key = if let Some(key_str) = &self.tsig_key {
+            key_from_str(key_str)?
+        } else {
+            None
+        };
+
+        let answer = client.request(self.create_request(), tsig_key).await?;
         self.output.format.print(&answer)?;
         if self.verify {
             let auth_answer = self.auth_answer().await?;
@@ -200,6 +212,41 @@ impl Query {
         }
         Ok(())
     }
+}
+
+fn key_from_str(key_str: &str) -> Result<Option<Key>, Error> {
+    let key_parts = key_str
+        .split(':')
+        .map(ToString::to_string)
+        .collect::<Vec<String>>();
+    if key_parts.len() < 2 {
+        return Err(
+            "--tsig-key format error: value should be colon ':' separated"
+                .into(),
+        );
+    }
+    let key_name = key_parts[0].trim_matches('"');
+    let (alg, base64) = match key_parts.len() {
+        2 => (Algorithm::Sha256, key_parts[1].clone()),
+        3 => {
+            let alg = Algorithm::from_str(&key_parts[1])
+        .map_err(|_| format!("--tsig-key format error: '{}' is not a valid TSIG algorithm", key_parts[1]))?;
+            (alg, key_parts[2].clone())
+        }
+        _ => return Err(
+            "--tsig-key format error: should be <name>:[<alg>]:<base64 key>"
+                .into(),
+        ),
+    };
+    let key_name = KeyName::from_str(key_name).map_err(|err| {
+        format!("--tsig-key format error: '{key_name}' is not a valid key name: {err}")
+    })?;
+    let secret = base64::decode::<Vec<u8>>(&base64).map_err(|err| {
+        format!("--tsig-key format error: base64 decoding error: {err}")
+    })?;
+    let key = Key::new(alg, &secret, key_name, None, None)
+        .map_err(|err| format!("--tsig-key format error: {err}"))?;
+    Ok(Some(key))
 }
 
 /// # Configuration
@@ -339,7 +386,7 @@ impl Query {
             self.get_ns_addrs(&ns_set, &resolver).await?
         };
         Client::with_servers(servers)
-            .query((self.qname.to_name(), self.qtype()))
+            .query((self.qname.to_name(), self.qtype()), None)
             .await
     }
 
