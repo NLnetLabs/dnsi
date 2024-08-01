@@ -11,6 +11,7 @@ use domain::net::client::protocol::UdpConnect;
 use domain::net::client::request::{RequestMessage, SendRequest};
 use domain::net::client::{dgram, stream};
 use domain::resolv::stub::conf;
+use serde::{Serialize, Serializer};
 use std::fmt;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -256,12 +257,24 @@ impl AsRef<Message<Bytes>> for Answer {
 
 //------------ Stats ---------------------------------------------------------
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize)]
 pub struct Stats {
     pub start: DateTime<Local>,
+    #[serde(serialize_with = "serialize_time_delta")]
     pub duration: TimeDelta,
     pub server_addr: SocketAddr,
     pub server_proto: Protocol,
+}
+
+fn serialize_time_delta<S>(
+    t: &TimeDelta,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let msecs = t.num_milliseconds();
+    serializer.serialize_i64(msecs)
 }
 
 impl Stats {
@@ -281,7 +294,8 @@ impl Stats {
 
 //------------ Protocol ------------------------------------------------------
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum Protocol {
     Udp,
     Tcp,
