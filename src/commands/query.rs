@@ -181,7 +181,7 @@ impl Query {
             }
         };
 
-        let answer = client.request(self.create_request()).await?;
+        let answer = client.request(self.create_request()?).await?;
         self.output.format.print(&answer)?;
         if self.verify {
             let auth_answer = self.auth_answer().await?;
@@ -310,7 +310,7 @@ impl Query {
 ///
 impl Query {
     /// Creates a new request message.
-    fn create_request(&self) -> RequestMessage<Vec<u8>> {
+    fn create_request(&self) -> Result<RequestMessage<Vec<u8>>, Error> {
         let mut res = MessageBuilder::new_vec();
 
         res.header_mut().set_ad(self.ad);
@@ -320,12 +320,12 @@ impl Query {
         let mut res = res.question();
         res.push((&self.qname.to_name(), self.qtype())).unwrap();
 
-        let mut req = RequestMessage::new(res);
+        let mut req = RequestMessage::new(res)?;
         if self.dnssec_ok {
             // Avoid touching the EDNS Opt record unless we need to set DO.
             req.set_dnssec_ok(true);
         }
-        req
+        Ok(req)
     }
 }
 
