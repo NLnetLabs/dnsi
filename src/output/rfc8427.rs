@@ -19,7 +19,10 @@ use std::io;
 
 use super::error::OutputError;
 
-pub fn write(answer: &Answer, mut target: &mut impl io::Write) -> Result<(), OutputError> {
+pub fn write(
+    answer: &Answer,
+    mut target: &mut impl io::Write,
+) -> Result<(), OutputError> {
     let mut map = serde_json::Map::new();
 
     fill_map(&mut map, answer);
@@ -182,10 +185,8 @@ fn insert_many<K: ToString, V: Into<Value>>(
 }
 
 fn record_map(rr: &mut Map<String, Value>, r: ParsedRecord<&[u8]>) {
-    let name: Result<Name<Vec<u8>>, _> = r.owner().try_flatten_into();
-    if let Ok(name) = name {
-        insert(rr, "NAME", name.fmt_with_dot().to_string());
-    }
+    let Ok(name): Result<Name<Vec<u8>>, _> = r.owner().try_flatten_into();
+    insert(rr, "NAME", name.fmt_with_dot().to_string());
 
     insert(rr, "TYPE", r.rtype().to_int());
     if let Some(s) = rtype_mnemomic(r.rtype()) {
@@ -199,7 +200,9 @@ fn record_map(rr: &mut Map<String, Value>, r: ParsedRecord<&[u8]>) {
 
     insert(rr, "TTL", r.ttl().as_secs());
 
-    if let Ok(rec) = r.to_any_record::<AllRecordData<&[u8], ParsedName<&[u8]>>>() {
+    if let Ok(rec) =
+        r.to_any_record::<AllRecordData<&[u8], ParsedName<&[u8]>>>()
+    {
         let ty = rtype_mnemomic(rec.rtype()).unwrap();
         let data = rec.data().to_string();
         insert(rr, format!("rdata{ty}"), data);
@@ -215,7 +218,11 @@ fn record_map(rr: &mut Map<String, Value>, r: ParsedRecord<&[u8]>) {
 /// Based on [draft-peltan-edns-presentation-format-03]
 ///
 /// [draft-peltan-edns-presentation-format-03]: https://www.ietf.org/archive/id/draft-peltan-edns-presentation-format-03.html
-fn edns_map(map: &mut Map<String, Value>, opt: &OptRecord<&[u8]>, header: Header) {
+fn edns_map(
+    map: &mut Map<String, Value>,
+    opt: &OptRecord<&[u8]>,
+    header: Header,
+) {
     insert(map, "version", opt.version());
     insert(
         map,
@@ -249,7 +256,9 @@ fn edns_map(map: &mut Map<String, Value>, opt: &OptRecord<&[u8]>, header: Header
             Cookie(cookie) => {
                 let cc = cookie.client().to_string();
                 match cookie.server() {
-                    Some(sc) => insert(map, "COOKIE", &[cc, sc.to_string()][..]),
+                    Some(sc) => {
+                        insert(map, "COOKIE", &[cc, sc.to_string()][..])
+                    }
                     None => insert(map, "COOKIE", &[cc][..]),
                 };
             }
@@ -281,7 +290,9 @@ fn edns_map(map: &mut Map<String, Value>, opt: &OptRecord<&[u8]>, header: Header
                     tcpkeepalive.timeout().map(Into::<u16>::into),
                 )
             }
-            KeyTag(keytag) => insert(map, "KEYTAG", keytag.iter().collect::<Vec<_>>()),
+            KeyTag(keytag) => {
+                insert(map, "KEYTAG", keytag.iter().collect::<Vec<_>>())
+            }
             Nsid(nsid) => insert(
                 map,
                 "NSID",
@@ -300,7 +311,9 @@ fn edns_map(map: &mut Map<String, Value>, opt: &OptRecord<&[u8]>, header: Header
                 }),
             ),
             ClientSubnet(subnet) => insert(map, "ECS", subnet.to_string()),
-            Other(opt) => insert(map, format!("OPT{}", opt.code()), hex(opt.as_slice())),
+            Other(opt) => {
+                insert(map, format!("OPT{}", opt.code()), hex(opt.as_slice()))
+            }
             _ => {}
         }
     }

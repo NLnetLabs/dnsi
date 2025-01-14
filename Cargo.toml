@@ -10,18 +10,26 @@ categories = ["command-line-utilities"]
 readme = "README.md"
 keywords = ["DNS", "domain"]
 license = "BSD-3-Clause"
-exclude = [ ".github", ".gitignore" ]
+exclude = [".github", ".gitignore"]
 
 [dependencies]
-bytes        = "1"
-chrono       = { version = "0.4.38", features = [ "alloc", "clock", "serde" ] }
-clap         = { version = "4", features = ["derive", "unstable-doc"] }
-domain       = { version = "0.10", features = ["resolv", "unstable-client-transport", "serde"]}
-serde        = { version = "1.0.202", features = ["derive"] }
-serde_json   = { version = "1.0.117", features = ["preserve_order"] }
-tempfile     = "3.1.0"
-tokio        = { version = "1.33", features = ["rt-multi-thread"] }
-tokio-rustls = { version = "0.26.0", default-features = false, features = [ "ring", "logging", "tls12" ] }
+bytes = "1"
+chrono = { version = "0.4.38", features = ["alloc", "clock", "serde"] }
+clap = { version = "4", features = ["derive", "unstable-doc"] }
+domain = { version = "0.10", git = "https://github.com/NLnetLabs/domain.git", features = [
+    "resolv",
+    "unstable-client-transport",
+    "serde",
+] }
+serde = { version = "1.0.217", features = ["derive"] }
+serde_json = { version = "1.0.135", features = ["preserve_order"] }
+tempfile = "3.1.0"
+tokio = { version = "1.33", features = ["rt-multi-thread"] }
+tokio-rustls = { version = "0.26.1", default-features = false, features = [
+    "ring",
+    "logging",
+    "tls12",
+] }
 webpki-roots = "0.26.3"
 
 [package.metadata.deb]
@@ -32,5 +40,5 @@ aspects of the DNS."""
 [package.metadata.generate-rpm]
 license = "BSD"
 assets = [
-  { source = "target/release/dnsi", dest = "/usr/bin/dnsi", mode = "755" },
+    { source = "target/release/dnsi", dest = "/usr/bin/dnsi", mode = "755" },
 ]

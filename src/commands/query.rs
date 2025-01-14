@@ -320,7 +320,7 @@ impl Query {
         let mut res = res.question();
         res.push((&self.qname.to_name(), self.qtype())).unwrap();
 
-        let mut req = RequestMessage::new(res);
+        let mut req = RequestMessage::new(res).unwrap();
         if self.dnssec_ok {
             // Avoid touching the EDNS Opt record unless we need to set DO.
             req.set_dnssec_ok(true);
