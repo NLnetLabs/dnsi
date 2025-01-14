@@ -188,7 +188,7 @@ fn record_map(rr: &mut Map<String, Value>, r: ParsedRecord<&[u8]>) {
     // Necessary for Rust 1.81 or lower
     #[allow(irrefutable_let_patterns)]
     let Ok(name): Result<Name<Vec<u8>>, _> = r.owner().try_flatten_into() else {
-        todo!()
+        unreachable!()
     };
     insert(rr, "NAME", name.fmt_with_dot().to_string());
 
