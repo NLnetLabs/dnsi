@@ -1,10 +1,17 @@
 # dnsi – A tool to investigate the DNS
 
 `dnsi` is a command line tool to investigate various aspects of the
-Domain Name System (DNS).
+Domain Name System (DNS). It is developed as part of the 
+[`domain` project](https://github.com/NLnetLabs/domain) and has our 
+long-term commitment. 
 
-It is currently in a very early state and will expand over the coming
-months.
+`dnsi` is currently in an early state and will expand over the coming
+months. Please don't hesitate to contribute by opening a pull-request,
+or submit a feature request by opening a
+[GitHub issue](https://github.com/NLnetLabs/dnsi/issues), or by reaching
+out via [Mastodon](https://fosstodon.org/@nlnetlabs/) or 
+[email](mailto:dns-team@nlnetlabs.nl).
+
 
 The tool contains a number of commands. Currently, these are:
 
@@ -14,8 +21,8 @@ The tool contains a number of commands. Currently, these are:
   names for IP addresses,
 * `dnsi help` displays the man page for any command.
 
-There are many options for each command. To learn more about them, use 
-`--help` for a complete overview, or `-h` for a summary, e.g. 
+There are many options for each command. To learn more about them, you 
+can use `--help` for a complete overview, or `-h` for a summary, e.g. 
 `dnsi query --help`. 
 
 ## Binary Packages
@@ -35,7 +42,6 @@ Debian versions:
 
 -  Debian Bookworm 12
 -  Debian Bullseye 11
--  Debian Buster 10
 
 Packages for the `amd64` and  `x86_64` architectures are available for
 all listed versions. In addition, we offer `armhf` architecture
@@ -89,7 +95,6 @@ Ubuntu versions:
 
 - Ubuntu Jammy 22.04 (LTS)
 - Ubuntu Focal 20.04 (LTS)
-- Ubuntu Bionic 18.04 (LTS)
 
 Packages are available for the `amd64`/`x86_64` architecture only.
 
@@ -137,7 +142,7 @@ sudo apt install dnsi
 
 ### RHEL and compatible systems
 
-To install the `dnsi` package, you need Red Hat Enterprise Linux (RHEL) 7,
+To install the `dnsi` package, you need Red Hat Enterprise Linux (RHEL)
 8 or 9, or compatible operating system such as Rocky Linux. Packages are
 available for the `amd64`/`x86_64` architecture only.
 

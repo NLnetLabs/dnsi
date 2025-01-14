@@ -6,9 +6,18 @@ Breaking changes
 
 New
 
+* Made the output for the padding EDNS0 option more terse in the
+  _friendly_ output format. ([#33])
+
 Bug fixes
 
+* Actually made `friendly` the default output format for the `query`
+  command. ([#29])
+
 Other changes
+
+[#29]: https://github.com/NLnetLabs/dnsi/pull/29
+[#33]: https://github.com/NLnetLabs/dnsi/pull/33
 
 
 ## 0.2.0
