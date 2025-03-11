@@ -107,13 +107,17 @@ impl Xfr {
             .block_on(self.async_execute())
     }
 
-    pub async fn async_execute(mut self) -> Result<(), Error> {
+    pub async fn async_execute(self) -> Result<(), Error> {
+        self.do_xfr().await
+    }
+
+    pub async fn mk_client(&mut self, transport: Transport) -> Result<Client, Error> {
         let client = match self.server {
             Some(ServerName::Name(ref host)) => {
                 if self.tls_hostname.is_none() {
                     self.tls_hostname = Some(host.to_string());
                 }
-                self.host_server(host).await?
+                self.host_server(host, transport).await?
             }
             Some(ServerName::Addr(addr)) => {
                 if self.tls && self.tls_hostname.is_none() {
@@ -121,7 +125,7 @@ impl Xfr {
                         "--tls-hostname is required for TLS transport".into(),
                     );
                 }
-                self.addr_server(addr)
+                self.addr_server(addr, transport)
             }
             None => {
                 if self.tls {
@@ -129,20 +133,20 @@ impl Xfr {
                         "--server is required for TLS transport".into()
                     );
                 }
-                self.system_server()
+                self.system_server(transport)
             }
         };
 
-        self.do_xfr(client).await
+        Ok(client)
     }
 
-    async fn do_xfr(self, client: Client) -> Result<(), Error> {
+    async fn do_xfr(self) -> Result<(), Error> {
         match self.transport() {
             Transport::Udp => {
-                self.do_udp_xfr_with_tcp_fallback(client).await?;
+                self.do_udp_xfr_with_tcp_fallback().await?;
             }
             Transport::Tcp | Transport::Tls => {
-                self.do_tcp_xfr(client).await?;
+                self.do_tcp_xfr().await?;
             }
             Transport::UdpTcp => {
                 // We can't use TC flag based fallback from UDP to TCP for
@@ -156,7 +160,8 @@ impl Xfr {
         Ok(())
     }
 
-    async fn do_tcp_xfr(self, client: Client) -> Result<(), Error> {
+    async fn do_tcp_xfr(mut self) -> Result<(), Error> {
+        let client = self.mk_client(self.transport()).await?;
         let (mut get_resp, mut stats, _conn) =
             client.request_multi(self.create_multi_request()?).await?;
 
@@ -177,9 +182,9 @@ impl Xfr {
     }
 
     async fn do_udp_xfr_with_tcp_fallback(
-        self,
-        client: Client,
+        mut self,
     ) -> Result<(), Error> {
+        let client = self.mk_client(Transport::Udp).await?;
         let ans = client.request(self.create_request()?).await?;
 
         // https://www.rfc-editor.org/rfc/rfc1995.html#section-2
@@ -191,7 +196,7 @@ impl Xfr {
         if ans.message().header_counts().ancount() == 1 {
             if let Ok(rr) = ans.message().answer().unwrap().next().unwrap() {
                 if rr.rtype() == Rtype::SOA {
-                    return self.do_tcp_xfr(client).await;
+                    return self.do_tcp_xfr().await;
                 }
             }
         }
@@ -225,6 +230,7 @@ impl Xfr {
     async fn host_server(
         &self,
         server: &UncertainName<Vec<u8>>,
+        transport: Transport,
     ) -> Result<Client, Error> {
         let resolver = StubResolver::default();
         let answer = match server {
@@ -250,7 +256,7 @@ impl Xfr {
                         }
                     }),
                 ),
-                transport: self.transport(),
+                transport,
                 timeout: self.timeout(),
                 retries: 2,
                 udp_payload_size: 1232,
@@ -261,13 +267,13 @@ impl Xfr {
     }
 
     /// Resolves a provided server name.
-    fn addr_server(&self, addr: IpAddr) -> Client {
+    fn addr_server(&self, addr: IpAddr, transport: Transport) -> Client {
         Client::with_servers(vec![Server {
             addr: SocketAddr::new(
                 addr,
                 self.port.unwrap_or(if self.tls { 853 } else { 53 }),
             ),
-            transport: self.transport(),
+            transport,
             timeout: self.timeout(),
             retries: self.retries(),
             udp_payload_size: self.udp_payload_size(),
@@ -276,14 +282,14 @@ impl Xfr {
     }
 
     /// Creates a client based on the system defaults.
-    fn system_server(&self) -> Client {
+    fn system_server(&self, transport: Transport) -> Client {
         let conf = ResolvConf::default();
         Client::with_servers(
             conf.servers
                 .iter()
                 .map(|server| Server {
                     addr: server.addr,
-                    transport: self.transport(),
+                    transport,
                     timeout: server.request_timeout,
                     retries: u8::try_from(conf.options.attempts).unwrap_or(2),
                     udp_payload_size: server.udp_payload_size,
