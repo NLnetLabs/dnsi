@@ -111,7 +111,10 @@ impl Xfr {
         self.do_xfr().await
     }
 
-    pub async fn mk_client(&mut self, transport: Transport) -> Result<Client, Error> {
+    pub async fn mk_client(
+        &mut self,
+        transport: Transport,
+    ) -> Result<Client, Error> {
         let client = match self.server {
             Some(ServerName::Name(ref host)) => {
                 if self.tls_hostname.is_none() {
@@ -141,12 +144,13 @@ impl Xfr {
     }
 
     async fn do_xfr(self) -> Result<(), Error> {
-        match self.transport() {
+        let transport = self.transport();
+        match transport {
             Transport::Udp => {
                 self.do_udp_xfr_with_tcp_fallback().await?;
             }
             Transport::Tcp | Transport::Tls => {
-                self.do_tcp_xfr().await?;
+                self.do_tcp_xfr(transport).await?;
             }
             Transport::UdpTcp => {
                 // We can't use TC flag based fallback from UDP to TCP for
@@ -160,9 +164,8 @@ impl Xfr {
         Ok(())
     }
 
-    async fn do_tcp_xfr(mut self) -> Result<(), Error> {
-        eprintln!("XIMON: do_tcp_xfr()");
-        let client = self.mk_client(self.transport()).await?;
+    async fn do_tcp_xfr(mut self, transport: Transport) -> Result<(), Error> {
+        let client = self.mk_client(transport).await?;
         let (mut get_resp, mut stats, _conn) =
             client.request_multi(self.create_multi_request()?).await?;
 
@@ -182,10 +185,7 @@ impl Xfr {
         Ok(())
     }
 
-    async fn do_udp_xfr_with_tcp_fallback(
-        mut self,
-    ) -> Result<(), Error> {
-        eprintln!("XIMON: do_udp_xfr_with_tcp_fallback()");
+    async fn do_udp_xfr_with_tcp_fallback(mut self) -> Result<(), Error> {
         let client = self.mk_client(Transport::Udp).await?;
         let ans = client.request(self.create_request()?).await?;
 
@@ -198,7 +198,7 @@ impl Xfr {
         if ans.message().header_counts().ancount() == 1 {
             if let Ok(rr) = ans.message().answer().unwrap().next().unwrap() {
                 if rr.rtype() == Rtype::SOA {
-                    return self.do_tcp_xfr().await;
+                    return self.do_tcp_xfr(Transport::Tcp).await;
                 }
             }
         }
