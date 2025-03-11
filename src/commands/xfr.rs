@@ -56,6 +56,10 @@ pub struct Xfr {
     #[arg(short, long)]
     udp: bool,
 
+    /// When trying UDP first, do NOT fallback to TCP.
+    #[arg(short, long)]
+    notcp: bool,
+
     /// Use TLS.
     #[arg(long)]
     tls: bool,
@@ -95,7 +99,17 @@ impl Xfr {
             let mut cmd = Args::command();
             cmd.error(
                 ErrorKind::ArgumentConflict,
-                "UDP is only permitted with IXFR",
+                "--udp is only permitted in combination with --ixfr",
+            )
+            .exit();
+        }
+
+        if self.notcp && !self.udp {
+            // Based on https://docs.rs/clap/latest/clap/_derive/_tutorial/index.html#custom-validation.
+            let mut cmd = Args::command();
+            cmd.error(
+                ErrorKind::ArgumentConflict,
+                "--notcp is only permitted with --udp",
             )
             .exit();
         }
@@ -195,7 +209,7 @@ impl Xfr {
         //    "If the UDP reply does not fit, the query is responded to with a
         //     single SOA record of the server's current version to inform the
         //     client that a TCP query should be initiated."
-        if ans.message().header_counts().ancount() == 1 {
+        if !self.notcp && ans.message().header_counts().ancount() == 1 {
             if let Ok(rr) = ans.message().answer().unwrap().next().unwrap() {
                 if rr.rtype() == Rtype::SOA {
                     return self.do_tcp_xfr(Transport::Tcp).await;
