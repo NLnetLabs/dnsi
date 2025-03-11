@@ -1,9 +1,8 @@
 //! The xfr command of _dnsi._
+use std::net::{IpAddr, SocketAddr};
+use std::str::FromStr;
+use std::time::Duration;
 
-use crate::client::{Answer, Client, Server, Transport};
-use crate::error::Error;
-use crate::output::OutputOptions;
-use crate::Args;
 use clap::error::ErrorKind;
 use clap::CommandFactory;
 use domain::base::iana::Rtype;
@@ -17,9 +16,11 @@ use domain::net::client::request::{
 use domain::rdata::Soa;
 use domain::resolv::stub::conf::ResolvConf;
 use domain::resolv::stub::StubResolver;
-use std::net::{IpAddr, SocketAddr};
-use std::str::FromStr;
-use std::time::Duration;
+
+use crate::client::{Answer, Client, Server, Transport};
+use crate::error::Error;
+use crate::output::OutputOptions;
+use crate::Args;
 
 //------------ Xfr -----------------------------------------------------------
 
@@ -132,30 +133,70 @@ impl Xfr {
             }
         };
 
+        self.do_xfr(client).await
+    }
+
+    async fn do_xfr(self, client: Client) -> Result<(), Error> {
         match self.transport() {
-            Transport::Udp | Transport::UdpTcp => {
-                let ans = client.request(self.create_request()?).await?;
-                self.output.format.print(&ans)?;
+            Transport::Udp => {
+                self.do_udp_xfr_with_tcp_fallback(client).await?;
             }
             Transport::Tcp | Transport::Tls => {
-                let (mut get_resp, mut stats, _conn) = client
-                    .request_multi(self.create_multi_request()?)
-                    .await?;
-                loop {
-                    let resp =
-                        GetResponseMulti::get_response(get_resp.as_mut())
-                            .await;
-                    stats.finalize();
-                    let resp = resp?;
-                    let resp = match resp {
-                        Some(resp) => resp,
-                        None => break,
-                    };
-                    let ans = Answer::new(resp, stats);
-                    self.output.format.print(&ans)?;
+                self.do_tcp_xfr(client).await?;
+            }
+            Transport::UdpTcp => {
+                // We can't use TC flag based fallback from UDP to TCP for
+                // IXFR because RFC 1995 defines that the server will indicate
+                // truncation by responding with a single SOA RR with TC=0,
+                // while UdpTcp falls back based on TC=1.
+                unreachable!()
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn do_tcp_xfr(self, client: Client) -> Result<(), Error> {
+        let (mut get_resp, mut stats, _conn) =
+            client.request_multi(self.create_multi_request()?).await?;
+
+        loop {
+            let resp =
+                GetResponseMulti::get_response(get_resp.as_mut()).await;
+            stats.finalize();
+            let resp = resp?;
+            let resp = match resp {
+                Some(resp) => resp,
+                None => break,
+            };
+            let ans = Answer::new(resp, stats);
+            self.output.format.print(&ans)?;
+        }
+
+        Ok(())
+    }
+
+    async fn do_udp_xfr_with_tcp_fallback(
+        self,
+        client: Client,
+    ) -> Result<(), Error> {
+        let ans = client.request(self.create_request()?).await?;
+
+        // https://www.rfc-editor.org/rfc/rfc1995.html#section-2
+        // 2. Brief Description of the Protocol
+        //    ...
+        //    "If the UDP reply does not fit, the query is responded to with a
+        //     single SOA record of the server's current version to inform the
+        //     client that a TCP query should be initiated."
+        if ans.message().header_counts().ancount() == 1 {
+            if let Ok(rr) = ans.message().answer().unwrap().next().unwrap() {
+                if rr.rtype() == Rtype::SOA {
+                    return self.do_tcp_xfr(client).await;
                 }
             }
         }
+
+        self.output.format.print(&ans)?;
 
         Ok(())
     }
