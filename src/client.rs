@@ -122,8 +122,8 @@ impl Client {
         server: &Server,
     ) -> Result<(Box<dyn GetResponseMulti>, Stats, Box<dyn SendRequestMulti<RequestMessageMulti<Vec<u8>>>>), Error> {
         match server.transport {
-            Transport::Udp => todo!(),
-            Transport::UdpTcp => todo!(),
+            Transport::Udp => unreachable!(),
+            Transport::UdpTcp => unreachable!(),
             Transport::Tcp => self.request_tcp_multi(request, server).await,
             Transport::Tls => self.request_tls_multi(request, server).await,
         }

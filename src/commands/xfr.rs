@@ -3,13 +3,18 @@
 use crate::client::{Answer, Client, Server, Transport};
 use crate::error::Error;
 use crate::output::OutputOptions;
-use domain::base::Ttl;
-use domain::rdata::Soa;
-use domain::base::Serial;
-use domain::base::iana::{Rtype};
+use crate::Args;
+use clap::error::ErrorKind;
+use clap::CommandFactory;
+use domain::base::iana::Rtype;
 use domain::base::message_builder::MessageBuilder;
 use domain::base::name::{Name, UncertainName};
-use domain::net::client::request::{GetResponseMulti, RequestMessageMulti};
+use domain::base::Serial;
+use domain::base::Ttl;
+use domain::net::client::request::{
+    GetResponseMulti, RequestMessage, RequestMessageMulti,
+};
+use domain::rdata::Soa;
 use domain::resolv::stub::conf::ResolvConf;
 use domain::resolv::stub::StubResolver;
 use std::net::{IpAddr, SocketAddr};
@@ -44,9 +49,11 @@ pub struct Xfr {
     #[arg(short = '6', long, conflicts_with = "ipv4")]
     ipv6: bool,
 
-    /// Use only TCP.
+    /// Try UDP first with fallback to TCP, otherwise use only TCP.
+    ///
+    /// Only permitted with IXFR as UDP is not permitted for AXFR.
     #[arg(short, long)]
-    tcp: bool,
+    udp: bool,
 
     /// Use TLS.
     #[arg(long)]
@@ -73,7 +80,23 @@ pub struct Xfr {
 ///
 impl Xfr {
     pub fn execute(self) -> Result<(), Error> {
-        #[allow(clippy::collapsible_if)] // There may be more later ...
+        // Per RFC 5936 section 4.2 "AXFR sessions over UDP transport are not
+        // defined". RFC 1995 section 2 "a client should first make an IXFR
+        // query using UDP" but as RFC 9103 section 5.2 states "it is noted
+        // that most of the widely used open-source implementations of
+        // authoritative name servers (including both [BIND] and [NSD]) do
+        // IXFR using TCP by default in their latest releases" and thus we
+        // default to TCP for IXFR, using UDP first must be requested
+        // explicity.
+        if self.udp && self.ixfr.is_none() {
+            // Based on https://docs.rs/clap/latest/clap/_derive/_tutorial/index.html#custom-validation.
+            let mut cmd = Args::command();
+            cmd.error(
+                ErrorKind::ArgumentConflict,
+                "UDP is only permitted with IXFR",
+            )
+            .exit();
+        }
 
         tokio::runtime::Builder::new_multi_thread()
             .enable_all()
@@ -108,18 +131,31 @@ impl Xfr {
             }
         };
 
-        let (mut get_resp, mut stats, _conn) = client.request_multi(self.create_request()?).await?;
-	loop {
-	    let resp = GetResponseMulti::get_response(get_resp.as_mut()).await;
-	    stats.finalize();
-	    let resp = resp?;
-	    let resp = match resp {
-		Some(resp) => resp,
-		None => break
-	    };
-	    let ans = Answer::new(resp, stats);
-	    self.output.format.print(&ans)?;
-	}
+        match self.transport() {
+            Transport::Udp | Transport::UdpTcp => {
+                let ans = client.request(self.create_request()?).await?;
+                self.output.format.print(&ans)?;
+            }
+            Transport::Tcp | Transport::Tls => {
+                let (mut get_resp, mut stats, _conn) = client
+                    .request_multi(self.create_multi_request()?)
+                    .await?;
+                loop {
+                    let resp =
+                        GetResponseMulti::get_response(get_resp.as_mut())
+                            .await;
+                    stats.finalize();
+                    let resp = resp?;
+                    let resp = match resp {
+                        Some(resp) => resp,
+                        None => break,
+                    };
+                    let ans = Answer::new(resp, stats);
+                    self.output.format.print(&ans)?;
+                }
+            }
+        }
+
         Ok(())
     }
 }
@@ -218,6 +254,8 @@ impl Xfr {
     fn transport(&self) -> Transport {
         if self.tls {
             Transport::Tls
+        } else if self.udp {
+            Transport::UdpTcp
         } else {
             Transport::Tcp
         }
@@ -228,31 +266,45 @@ impl Xfr {
 ///
 impl Xfr {
     /// Creates a new request message.
-    fn create_request(&self) -> Result<RequestMessageMulti<Vec<u8>>, Error> {
+    fn create_request(&self) -> Result<RequestMessage<Vec<u8>>, Error> {
+        Ok(RequestMessage::new(self.create_message())?)
+    }
+
+    /// Creates a new request message.
+    fn create_multi_request(
+        &self,
+    ) -> Result<RequestMessageMulti<Vec<u8>>, Error> {
+        Ok(RequestMessageMulti::new(self.create_message())?)
+    }
+
+    fn create_message(
+        &self,
+    ) -> domain::base::message_builder::AdditionalBuilder<Vec<u8>> {
         let res = MessageBuilder::new_vec();
 
         let mut res = res.question();
-	let add = match self.ixfr {
-	    None => { res.push((&self.qname.to_name(), Rtype::AXFR)).unwrap();
-		res.additional()
-	    }
-	    Some(serial) => {
-		res.push((&self.qname.to_name(), Rtype::IXFR)).unwrap();
-		let mut auth = res.authority();
-		let soa = Soa::new(Name::root_ref(),
-			Name::root_ref(), serial, 
-			Ttl::ZERO,
-			Ttl::ZERO,
-			Ttl::ZERO,
-			Ttl::ZERO,
-		);
-		auth.push((&self.qname.to_name(), 0, soa)).unwrap();
-		auth.additional()
-	    }
-	};
-
-        let req = RequestMessageMulti::new(add)?;
-        Ok(req)
+        let add = match self.ixfr {
+            None => {
+                res.push((&self.qname.to_name(), Rtype::AXFR)).unwrap();
+                res.additional()
+            }
+            Some(serial) => {
+                res.push((&self.qname.to_name(), Rtype::IXFR)).unwrap();
+                let mut auth = res.authority();
+                let soa = Soa::new(
+                    Name::root_ref(),
+                    Name::root_ref(),
+                    serial,
+                    Ttl::ZERO,
+                    Ttl::ZERO,
+                    Ttl::ZERO,
+                    Ttl::ZERO,
+                );
+                auth.push((&self.qname.to_name(), 0, soa)).unwrap();
+                auth.additional()
+            }
+        };
+        add
     }
 }
 
