@@ -81,9 +81,11 @@ pub struct Xfr {
 impl Xfr {
     pub fn execute(self) -> Result<(), Error> {
         // Per RFC 5936 section 4.2 "AXFR sessions over UDP transport are not
-        // defined". RFC 1995 section 2 "a client should first make an IXFR
-        // query using UDP" but as RFC 9103 section 5.2 states "it is noted
-        // that most of the widely used open-source implementations of
+        // defined".
+        //
+        // RFC 1995 section 2 says "a client should first make an IXFR query
+        // using UDP" but as RFC 9103 section 5.2 states "it is noted that
+        // most of the widely used open-source implementations of
         // authoritative name servers (including both [BIND] and [NSD]) do
         // IXFR using TCP by default in their latest releases" and thus we
         // default to TCP for IXFR, using UDP first must be requested
