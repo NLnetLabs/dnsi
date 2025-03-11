@@ -87,9 +87,8 @@ impl Xfr {
         // using UDP" but as RFC 9103 section 5.2 states "it is noted that
         // most of the widely used open-source implementations of
         // authoritative name servers (including both [BIND] and [NSD]) do
-        // IXFR using TCP by default in their latest releases" and thus we
-        // default to TCP for IXFR, using UDP first must be requested
-        // explicity.
+        // IXFR using TCP by default in their latest releases" we default to
+        // TCP for IXFR, using UDP first must be requested explicity.
         if self.udp && self.ixfr.is_none() {
             // Based on https://docs.rs/clap/latest/clap/_derive/_tutorial/index.html#custom-validation.
             let mut cmd = Args::command();
