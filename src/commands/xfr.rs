@@ -297,7 +297,7 @@ impl Xfr {
         if self.tls {
             Transport::Tls
         } else if self.udp {
-            Transport::UdpTcp
+            Transport::Udp
         } else {
             Transport::Tcp
         }
