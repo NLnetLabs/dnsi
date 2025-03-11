@@ -161,6 +161,7 @@ impl Xfr {
     }
 
     async fn do_tcp_xfr(mut self) -> Result<(), Error> {
+        eprintln!("XIMON: do_tcp_xfr()");
         let client = self.mk_client(self.transport()).await?;
         let (mut get_resp, mut stats, _conn) =
             client.request_multi(self.create_multi_request()?).await?;
@@ -184,6 +185,7 @@ impl Xfr {
     async fn do_udp_xfr_with_tcp_fallback(
         mut self,
     ) -> Result<(), Error> {
+        eprintln!("XIMON: do_udp_xfr_with_tcp_fallback()");
         let client = self.mk_client(Transport::Udp).await?;
         let ans = client.request(self.create_request()?).await?;
 
