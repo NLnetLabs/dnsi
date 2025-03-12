@@ -57,6 +57,8 @@ pub struct Xfr {
     udp: bool,
 
     /// When trying UDP first, do NOT fallback to TCP.
+    /// 
+    /// Only permitted with IXFR via UDP.
     #[arg(short, long)]
     notcp: bool,
 
