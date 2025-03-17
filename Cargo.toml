@@ -2,7 +2,7 @@
 name = "dnsi"
 version = "0.2.0"
 edition = "2021"
-rust-version = "1.78.0"
+rust-version = "1.79.0"
 authors = ["NLnet Labs <dns-team@nlnetlabs.nl>"]
 description = "A tool for investigating the DNS."
 repository = "https://github.com/nlnetlabs/dnsi/"
@@ -16,7 +16,7 @@ exclude = [ ".github", ".gitignore" ]
 bytes    = "1"
 clap     = { version = "4", features = ["derive", "unstable-doc"] }
 chrono   = { version = "0.4.38", features = [ "alloc", "clock" ] }
-domain   = { git = "https://github.com/NLnetLabs/domain.git", features = ["resolv", "unstable-client-transport"]}
+domain   = { git = "https://github.com/NLnetLabs/domain.git", rev="e5ace3f1", features = ["resolv", "unstable-client-transport"]}
 tempfile = "3.1.0"
 tokio    = { version = "1.33", features = ["rt-multi-thread"] }
 tokio-rustls = { version = "0.26.0", default-features = false, features = [ "ring", "logging", "tls12" ] }
