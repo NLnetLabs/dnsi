@@ -8,9 +8,12 @@ use domain::base::message_builder::MessageBuilder;
 use domain::base::name::ToName;
 use domain::base::question::Question;
 use domain::net::client::protocol::UdpConnect;
-use domain::net::client::request::{RequestMessage, SendRequest};
+use domain::net::client::request::{
+    RequestMessage, RequestMessageMulti, SendRequest,
+};
 use domain::net::client::{dgram, stream};
 use domain::resolv::stub::conf;
+use serde::{Serialize, Serializer};
 use std::fmt;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -62,7 +65,7 @@ impl Client {
         let mut res = res.question();
         res.push(question.into()).unwrap();
 
-        self.request(RequestMessage::new(res)).await
+        self.request(RequestMessage::new(res)?).await
     }
 
     pub async fn request(
@@ -132,9 +135,11 @@ impl Client {
     ) -> Result<Answer, Error> {
         let mut stats = Stats::new(server.addr, Protocol::Tcp);
         let socket = TcpStream::connect(server.addr).await?;
-        let (conn, tran) = stream::Connection::with_config(
-            socket,
-            Self::stream_config(server),
+        let (conn, tran) = stream::Connection::<
+            _,
+            RequestMessageMulti<Vec<u8>>,
+        >::with_config(
+            socket, Self::stream_config(server)
         );
         tokio::spawn(tran.run());
         let message = conn.send_request(request).get_response().await?;
@@ -170,9 +175,11 @@ impl Client {
             })?;
         let tls_socket =
             tls_connector.connect(server_name, tcp_socket).await?;
-        let (conn, tran) = stream::Connection::with_config(
-            tls_socket,
-            Self::stream_config(server),
+        let (conn, tran) = stream::Connection::<
+            _,
+            RequestMessageMulti<Vec<u8>>,
+        >::with_config(
+            tls_socket, Self::stream_config(server)
         );
         tokio::spawn(tran.run());
         let message = conn.send_request(request).get_response().await?;
@@ -256,12 +263,24 @@ impl AsRef<Message<Bytes>> for Answer {
 
 //------------ Stats ---------------------------------------------------------
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize)]
 pub struct Stats {
     pub start: DateTime<Local>,
+    #[serde(serialize_with = "serialize_time_delta")]
     pub duration: TimeDelta,
     pub server_addr: SocketAddr,
     pub server_proto: Protocol,
+}
+
+fn serialize_time_delta<S>(
+    t: &TimeDelta,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let msecs = t.num_milliseconds();
+    serializer.serialize_i64(msecs)
 }
 
 impl Stats {
@@ -281,7 +300,8 @@ impl Stats {
 
 //------------ Protocol ------------------------------------------------------
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum Protocol {
     Udp,
     Tcp,
