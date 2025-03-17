@@ -64,9 +64,9 @@ pub fn write(
                     }
                     TcpKeepalive(opt) => writeln!(
                         target,
-                        "; TCPKEEPALIVE: {} secs",
+                        "; TCP KEEPALIVE: {}",
                         opt.timeout().map_or("".to_string(), |t| format!(
-                            "{:.1}",
+                            "{:.1} secs",
                             Duration::from(t).as_secs_f64()
                         ))
                     )?,
