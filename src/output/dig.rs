@@ -45,7 +45,7 @@ pub fn write(
         writeln!(target, "\n;; OPT PSEUDOSECTION:")?;
         writeln!(
             target,
-            "; EDNS: version {}; flags: {}; udp: {}",
+            "; EDNS: version {}, flags: {}; udp: {}",
             opt.version(),
             if opt.dnssec_ok() { "do" } else { "" },
             opt.udp_payload_size()
