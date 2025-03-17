@@ -57,7 +57,7 @@ pub struct Xfr {
     udp: bool,
 
     /// When trying UDP first, do NOT fallback to TCP.
-    /// 
+    ///
     /// Only permitted with IXFR via UDP.
     #[arg(short, long)]
     notcp: bool,
@@ -349,7 +349,7 @@ impl Xfr {
         let res = MessageBuilder::new_vec();
 
         let mut res = res.question();
-        let add = match self.ixfr {
+        match self.ixfr {
             None => {
                 res.push((&self.qname.to_name(), Rtype::AXFR)).unwrap();
                 res.additional()
@@ -369,8 +369,7 @@ impl Xfr {
                 auth.push((&self.qname.to_name(), 0, soa)).unwrap();
                 auth.additional()
             }
-        };
-        add
+        }
     }
 }
 
