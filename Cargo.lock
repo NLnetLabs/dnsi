@@ -288,7 +288,7 @@ dependencies = [
 [[package]]
 name = "domain"
 version = "0.10.3"
-source = "git+https://github.com/NLnetLabs/domain.git#e5ace3f15275073caa8c7ff6c34d6a4c1123b948"
+source = "git+https://github.com/NLnetLabs/domain.git?rev=e5ace3f1#e5ace3f15275073caa8c7ff6c34d6a4c1123b948"
 dependencies = [
  "bytes",
  "futures-util",
