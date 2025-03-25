@@ -1,17 +1,15 @@
-//! Format based on [RFC 8427]
+//! JSON format based on [RFC 8427]
 //!
 //! [RFC 8427]: https://tools.ietf.org/html/rfc8427
 
-use domain::{
-    base::{
-        iana::Class,
-        name::FlattenInto,
-        opt::{AllOptData, OptRecord},
-        Header, Name, ParsedName, ParsedRecord, Rtype, UnknownRecordData,
-    },
-    rdata::AllRecordData,
-    utils::base16,
+use domain::base::iana::Class;
+use domain::base::name::FlattenInto;
+use domain::base::opt::{AllOptData, OptRecord};
+use domain::base::{
+    Header, Name, ParsedName, ParsedRecord, Rtype, UnknownRecordData,
 };
+use domain::rdata::AllRecordData;
+use domain::utils::base16;
 use serde_json::{json, Map, Value};
 
 use crate::client::Answer;
@@ -106,6 +104,13 @@ fn fill_map(map: &mut Map<String, Value>, answer: &Answer) {
     let mut rrs: Vec<Value> = Vec::new();
     for q in questions.flatten() {
         let mut rr = serde_json::Map::new();
+
+        #[allow(irrefutable_let_patterns)]
+        let Ok(name): Result<Name<Vec<u8>>, _> = q.qname().try_flatten_into() else {
+            unreachable!()
+        };
+
+        insert(&mut rr, "NAME", name.fmt_with_dot().to_string());
 
         insert(&mut rr, "TYPE", q.qtype().to_int());
         if let Some(s) = rtype_mnemomic(q.qtype()) {
