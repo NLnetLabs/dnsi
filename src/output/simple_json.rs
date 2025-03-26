@@ -1,3 +1,5 @@
+//! A simple non-standard JSON format
+
 use crate::client::{Answer, Stats};
 use bytes::Bytes;
 use domain::base::iana::{Class, Opcode};
