@@ -80,7 +80,7 @@ pub struct Query {
     #[arg(long, overrides_with = "_no_ad")]
     ad: bool,
 
-    /// Do not set the Authentic Data (AD) flag in the request (default).
+    /// Do not set the Authentic Data (AD) flag in the request [default].
     #[arg(long = "no-ad")]
     _no_ad: bool,
 
@@ -88,7 +88,7 @@ pub struct Query {
     #[arg(long, overrides_with = "_no_cd")]
     cd: bool,
 
-    /// Do not set the Checking Disabled (CD) flag in the request (default).
+    /// Do not set the Checking Disabled (CD) flag in the request [default].
     #[arg(long = "no-cd")]
     _no_cd: bool,
 
@@ -98,12 +98,12 @@ pub struct Query {
     dnssec_ok: bool,
 
     /// Do not set the DNSSEC OK (DO) flag in the request, avoid creating the
-    /// EDNS Opt record (default).
+    /// EDNS Opt record [default].
     #[arg(long = "no-do")]
     _no_do: bool,
 
     // No need to set the RA flag in the request.
-    /// Set the Recursion Desired (RD) flag in the request (default).
+    /// Set the Recursion Desired (RD) flag in the request [default].
     // Tricky, we want RD default to true. The obvious, to have default_value
     // fails in combination with overrides_with. The solution is to test if
     // no_rd is false.
