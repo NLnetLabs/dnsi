@@ -27,7 +27,7 @@ pub struct Query {
     #[arg(value_name = "QUERY_NAME_OR_ADDR")]
     qname: NameOrAddr,
 
-    /// The record type to look up (default: "AAAA" or "PTR")
+    /// The record type to look up [default: "AAAA" or "PTR"]
     #[arg(value_name = "QUERY_TYPE")]
     qtype: Option<Rtype>,
 
