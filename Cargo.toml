@@ -2,7 +2,7 @@
 name = "dnsi"
 version = "0.2.0"
 edition = "2021"
-rust-version = "1.78.0"
+rust-version = "1.79.0"
 authors = ["NLnet Labs <dns-team@nlnetlabs.nl>"]
 description = "A tool for investigating the DNS."
 repository = "https://github.com/nlnetlabs/dnsi/"
@@ -13,13 +13,15 @@ license = "BSD-3-Clause"
 exclude = [ ".github", ".gitignore" ]
 
 [dependencies]
-bytes    = "1"
-clap     = { version = "4", features = ["derive", "unstable-doc"] }
-chrono   = { version = "0.4.38", features = [ "alloc", "clock" ] }
-domain   = { version = "0.10", features = ["resolv", "unstable-client-transport"]}
-tempfile = "3.1.0"
-tokio    = { version = "1.33", features = ["rt-multi-thread"] }
-tokio-rustls = { version = "0.26.0", default-features = false, features = [ "ring", "logging", "tls12" ] }
+bytes        = "1"
+clap         = { version = "4", features = ["derive", "unstable-doc"] }
+chrono       = { version = "0.4.38", features = ["alloc", "clock", "serde"] }
+domain       = { version = "0.10", git = "https://github.com/NLnetLabs/domain.git", rev="e5ace3f1", features = ["resolv", "unstable-client-transport", "serde"]}
+serde        = { version = "1.0.217", features = ["derive"] }
+serde_json   = { version = "1.0.135", features = ["preserve_order"] }
+tempfile     = "3.1.0"
+tokio        = { version = "1.33", features = ["rt-multi-thread"] }
+tokio-rustls = { version = "0.26.0", default-features = false, features = ["ring", "logging", "tls12"] }
 webpki-roots = "0.26.3"
 
 [package.metadata.deb]
