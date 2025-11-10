@@ -130,7 +130,7 @@ fn write_opt(
                 Expire(expire) => ("EXPIRE", expire.to_string()),
                 TcpKeepalive(opt) => ("TCPKEEPALIVE", opt.to_string()),
                 Padding(padding) => {
-                    let padding  = padding.as_slice();
+                    let padding = padding.as_slice();
                     let len = padding.len();
                     let all_zero = if padding.iter().all(|b| *b == 0) {
                         "all zero"
