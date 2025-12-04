@@ -8,7 +8,10 @@ use domain::base::message_builder::MessageBuilder;
 use domain::base::name::ToName;
 use domain::base::question::Question;
 use domain::net::client::protocol::UdpConnect;
-use domain::net::client::request::{GetResponseMulti, RequestMessage, RequestMessageMulti, SendRequest, SendRequestMulti};
+use domain::net::client::request::{
+    GetResponseMulti, RequestMessage, RequestMessageMulti, SendRequest,
+    SendRequestMulti,
+};
 use domain::net::client::{dgram, stream};
 use domain::resolv::stub::conf;
 use std::fmt;
@@ -87,7 +90,14 @@ impl Client {
     pub async fn request_multi(
         &self,
         request: RequestMessageMulti<Vec<u8>>,
-    ) -> Result<(Box<dyn GetResponseMulti>, Stats, Box<dyn SendRequestMulti<RequestMessageMulti<Vec<u8>>>>), Error> {
+    ) -> Result<
+        (
+            Box<dyn GetResponseMulti>,
+            Stats,
+            Box<dyn SendRequestMulti<RequestMessageMulti<Vec<u8>>>>,
+        ),
+        Error,
+    > {
         let mut servers = self.servers.as_slice();
         while let Some((server, tail)) = servers.split_first() {
             match self.request_server_multi(request.clone(), server).await {
@@ -120,7 +130,14 @@ impl Client {
         &self,
         request: RequestMessageMulti<Vec<u8>>,
         server: &Server,
-    ) -> Result<(Box<dyn GetResponseMulti>, Stats, Box<dyn SendRequestMulti<RequestMessageMulti<Vec<u8>>>>), Error> {
+    ) -> Result<
+        (
+            Box<dyn GetResponseMulti>,
+            Stats,
+            Box<dyn SendRequestMulti<RequestMessageMulti<Vec<u8>>>>,
+        ),
+        Error,
+    > {
         match server.transport {
             Transport::Udp => todo!(),
             Transport::UdpTcp => todo!(),
@@ -164,12 +181,16 @@ impl Client {
     ) -> Result<Answer, Error> {
         let mut stats = Stats::new(server.addr, Protocol::Tcp);
         let socket = TcpStream::connect(server.addr).await?;
-        let (conn, tran) = stream::Connection::<_, RequestMessageMulti<Vec<u8>>>::with_config(
-            socket,
-            Self::stream_config(server),
+        let (conn, tran) = stream::Connection::<
+            _,
+            RequestMessageMulti<Vec<u8>>,
+        >::with_config(
+            socket, Self::stream_config(server)
         );
         tokio::spawn(tran.run());
-        let message = SendRequest::send_request(&conn, request).get_response().await?;
+        let message = SendRequest::send_request(&conn, request)
+            .get_response()
+            .await?;
         stats.finalize();
         Ok(Answer { message, stats })
     }
@@ -178,14 +199,25 @@ impl Client {
         &self,
         request: RequestMessageMulti<Vec<u8>>,
         server: &Server,
-    ) -> Result<(Box<dyn GetResponseMulti>, Stats, Box<dyn SendRequestMulti<RequestMessageMulti<Vec<u8>>>>), Error> {
+    ) -> Result<
+        (
+            Box<dyn GetResponseMulti>,
+            Stats,
+            Box<dyn SendRequestMulti<RequestMessageMulti<Vec<u8>>>>,
+        ),
+        Error,
+    > {
         let stats = Stats::new(server.addr, Protocol::Tcp);
         let socket = TcpStream::connect(server.addr).await?;
-        let (conn, tran) = stream::Connection::<RequestMessage<Vec<u8>>, _>::with_config(
-            socket,
-            Self::stream_config(server),
-        );
-        tokio::spawn(async { tran.run().await; print!("run terminated"); });
+        let (conn, tran) =
+            stream::Connection::<RequestMessage<Vec<u8>>, _>::with_config(
+                socket,
+                Self::stream_config(server),
+            );
+        tokio::spawn(async {
+            tran.run().await;
+            print!("run terminated");
+        });
         let get_resp = SendRequestMulti::send_request(&conn, request);
         Ok((get_resp, stats, Box::new(conn)))
     }
@@ -218,12 +250,16 @@ impl Client {
             })?;
         let tls_socket =
             tls_connector.connect(server_name, tcp_socket).await?;
-        let (conn, tran) = stream::Connection::<_, RequestMessageMulti<Vec<u8>>>::with_config(
-            tls_socket,
-            Self::stream_config(server),
+        let (conn, tran) = stream::Connection::<
+            _,
+            RequestMessageMulti<Vec<u8>>,
+        >::with_config(
+            tls_socket, Self::stream_config(server)
         );
         tokio::spawn(tran.run());
-        let message = SendRequest::send_request(&conn, request).get_response().await?;
+        let message = SendRequest::send_request(&conn, request)
+            .get_response()
+            .await?;
         stats.finalize();
         Ok(Answer { message, stats })
     }
@@ -232,7 +268,14 @@ impl Client {
         &self,
         request: RequestMessageMulti<Vec<u8>>,
         server: &Server,
-    ) -> Result<(Box<dyn GetResponseMulti>, Stats, Box<dyn SendRequestMulti<RequestMessageMulti<Vec<u8>>>>), Error> {
+    ) -> Result<
+        (
+            Box<dyn GetResponseMulti>,
+            Stats,
+            Box<dyn SendRequestMulti<RequestMessageMulti<Vec<u8>>>>,
+        ),
+        Error,
+    > {
         let root_store = RootCertStore {
             roots: webpki_roots::TLS_SERVER_ROOTS.into(),
         };
@@ -256,10 +299,11 @@ impl Client {
             })?;
         let tls_socket =
             tls_connector.connect(server_name, tcp_socket).await?;
-        let (conn, tran) = stream::Connection::<RequestMessage<Vec<u8>>, _>::with_config(
-            tls_socket,
-            Self::stream_config(server),
-        );
+        let (conn, tran) =
+            stream::Connection::<RequestMessage<Vec<u8>>, _>::with_config(
+                tls_socket,
+                Self::stream_config(server),
+            );
         tokio::spawn(tran.run());
         let get_resp = SendRequestMulti::send_request(&conn, request);
         Ok((get_resp, stats, Box::new(conn)))
@@ -321,7 +365,7 @@ pub struct Answer {
 
 impl Answer {
     pub fn new(message: Message<Bytes>, stats: Stats) -> Self {
-	Answer { message, stats }
+        Answer { message, stats }
     }
 
     pub fn stats(&self) -> Stats {
