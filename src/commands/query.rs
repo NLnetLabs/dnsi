@@ -27,7 +27,7 @@ pub struct Query {
     #[arg(value_name = "QUERY_NAME_OR_ADDR")]
     qname: NameOrAddr,
 
-    /// The record type to look up
+    /// The record type to look up [default: "AAAA" or "PTR"]
     #[arg(value_name = "QUERY_TYPE")]
     qtype: Option<Rtype>,
 
@@ -76,41 +76,41 @@ pub struct Query {
     udp_payload_size: Option<u16>,
 
     // No need to set the AA flag in the request.
-    /// Set the AD flag in the request.
+    /// Set the Authentic Data (AD) flag in the request.
     #[arg(long, overrides_with = "_no_ad")]
     ad: bool,
 
-    /// Do not set the AD flag in the request.
+    /// Do not set the Authentic Data (AD) flag in the request [default].
     #[arg(long = "no-ad")]
     _no_ad: bool,
 
-    /// Set the CD flag in the request.
+    /// Set the Checking Disabled (CD) flag in the request.
     #[arg(long, overrides_with = "_no_cd")]
     cd: bool,
 
-    /// Do not set the CD flag in the request.
+    /// Do not set the Checking Disabled (CD) flag in the request [default].
     #[arg(long = "no-cd")]
     _no_cd: bool,
 
-    /// Set the DO flag in the EDNS Opt record in the request.
+    /// Set the DNSSEC OK (DO) flag in the EDNS Opt record in the request.
     // Calling the field `do` would conflict with the keyward `do`.
     #[arg(long = "do", overrides_with = "_no_do")]
     dnssec_ok: bool,
 
-    /// Do not set the DO flag in the request, avoid creating the EDNS Opt
-    /// record.
+    /// Do not set the DNSSEC OK (DO) flag in the request, avoid creating the
+    /// EDNS Opt record [default].
     #[arg(long = "no-do")]
     _no_do: bool,
 
     // No need to set the RA flag in the request.
-    /// Set the RD flag in the request.
+    /// Set the Recursion Desired (RD) flag in the request [default].
     // Tricky, we want RD default to true. The obvious, to have default_value
     // fails in combination with overrides_with. The solution is to test if
     // no_rd is false.
     #[arg(long, overrides_with = "no_rd")]
     _rd: bool,
 
-    /// Do not set the RD flag in the request.
+    /// Do not set the Recursion Desired (RD) flag in the request.
     #[arg(long = "no-rd")]
     no_rd: bool,
 
