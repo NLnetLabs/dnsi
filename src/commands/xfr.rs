@@ -258,6 +258,11 @@ impl Xfr {
             UncertainName::Relative(name) => resolver.search_host(name).await,
         }
         .map_err(|err| err.to_string())?;
+        if answer.is_empty() {
+            return Err(
+                format!("lookup of {server} gave empty result").into()
+            );
+        }
 
         let mut servers = Vec::new();
         for addr in answer.iter() {
