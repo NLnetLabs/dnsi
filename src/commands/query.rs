@@ -509,9 +509,10 @@ impl Query {
 }
 
 //------------ ServerName ---------------------------------------------------
+// Should be moved to common code. xfr also needs it.
 
 #[derive(Clone, Debug)]
-enum ServerName {
+pub enum ServerName {
     Name(UncertainName<Vec<u8>>),
     Addr(IpAddr),
 }
@@ -531,15 +532,16 @@ impl FromStr for ServerName {
 }
 
 //------------ NameOrAddr ----------------------------------------------------
+// Should be moved to common code because xfr also needs it.
 
 #[derive(Clone, Debug)]
-enum NameOrAddr {
+pub enum NameOrAddr {
     Name(Name<Vec<u8>>),
     Addr(IpAddr),
 }
 
 impl NameOrAddr {
-    fn to_name(&self) -> Name<Vec<u8>> {
+    pub fn to_name(&self) -> Name<Vec<u8>> {
         match &self {
             NameOrAddr::Name(host) => host.clone(),
             NameOrAddr::Addr(addr) => {

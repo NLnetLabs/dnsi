@@ -1,6 +1,5 @@
 //! The xfr command of _dnsi._
 use std::net::{IpAddr, SocketAddr};
-use std::str::FromStr;
 use std::time::Duration;
 
 use clap::error::ErrorKind;
@@ -21,6 +20,9 @@ use crate::client::{Answer, Client, Server, Transport};
 use crate::error::Error;
 use crate::output::OutputOptions;
 use crate::Args;
+
+use super::query::NameOrAddr;
+use super::query::ServerName;
 
 //------------ Xfr -----------------------------------------------------------
 
@@ -369,76 +371,6 @@ impl Xfr {
                 auth.push((&self.qname.to_name(), 0, soa)).unwrap();
                 auth.additional()
             }
-        }
-    }
-}
-
-/// # Get an authoritative answer
-impl Xfr {
-    /*
-    fn qtype(&self) -> Rtype {
-        match self.qtype {
-            Some(qtype) => qtype,
-            None => match self.qname {
-                NameOrAddr::Addr(_) => Rtype::PTR,
-                NameOrAddr::Name(_) => Rtype::AAAA,
-            },
-        }
-    }
-    */
-}
-
-//------------ ServerName ---------------------------------------------------
-
-#[derive(Clone, Debug)]
-enum ServerName {
-    Name(UncertainName<Vec<u8>>),
-    Addr(IpAddr),
-}
-
-impl FromStr for ServerName {
-    type Err = &'static str;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if let Ok(addr) = IpAddr::from_str(s) {
-            Ok(ServerName::Addr(addr))
-        } else {
-            UncertainName::from_str(s)
-                .map(Self::Name)
-                .map_err(|_| "illegal host name")
-        }
-    }
-}
-
-//------------ NameOrAddr ----------------------------------------------------
-
-#[derive(Clone, Debug)]
-enum NameOrAddr {
-    Name(Name<Vec<u8>>),
-    Addr(IpAddr),
-}
-
-impl NameOrAddr {
-    fn to_name(&self) -> Name<Vec<u8>> {
-        match &self {
-            NameOrAddr::Name(host) => host.clone(),
-            NameOrAddr::Addr(addr) => {
-                Name::<Vec<u8>>::reverse_from_addr(*addr).unwrap()
-            }
-        }
-    }
-}
-
-impl FromStr for NameOrAddr {
-    type Err = &'static str;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if let Ok(addr) = IpAddr::from_str(s) {
-            Ok(NameOrAddr::Addr(addr))
-        } else {
-            Name::from_str(s)
-                .map(Self::Name)
-                .map_err(|_| "illegal host name")
         }
     }
 }
