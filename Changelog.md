@@ -8,6 +8,7 @@ New
 
 * Made the output for the padding EDNS0 option more terse in the
   _friendly_ output format. ([#33])
+* A new xfr subcommand for AXFR and IXFR ([#44])
 
 Bug fixes
 
@@ -18,6 +19,7 @@ Other changes
 
 [#29]: https://github.com/NLnetLabs/dnsi/pull/29
 [#33]: https://github.com/NLnetLabs/dnsi/pull/33
+[#44]: https://github.com/NLnetLabs/dnsi/pull/44
 
 
 ## 0.2.0
