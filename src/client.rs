@@ -8,7 +8,10 @@ use domain::base::message_builder::MessageBuilder;
 use domain::base::name::ToName;
 use domain::base::question::Question;
 use domain::net::client::protocol::UdpConnect;
-use domain::net::client::request::{RequestMessage, SendRequest};
+use domain::net::client::request::{
+    ComposeRequest, ComposeRequestMulti, GetResponseMulti, RequestMessage,
+    RequestMessageMulti, SendRequest, SendRequestMulti,
+};
 use domain::net::client::{dgram, stream};
 use domain::resolv::stub::conf;
 use std::fmt;
@@ -62,7 +65,7 @@ impl Client {
         let mut res = res.question();
         res.push(question.into()).unwrap();
 
-        self.request(RequestMessage::new(res)).await
+        self.request(RequestMessage::new(res)?).await
     }
 
     pub async fn request(
@@ -84,7 +87,33 @@ impl Client {
         unreachable!()
     }
 
-    pub async fn request_server(
+    pub async fn request_multi(
+        &self,
+        request: RequestMessageMulti<Vec<u8>>,
+    ) -> Result<
+        (
+            Box<dyn GetResponseMulti>,
+            Stats,
+            Box<dyn SendRequestMulti<RequestMessageMulti<Vec<u8>>>>,
+        ),
+        Error,
+    > {
+        let mut servers = self.servers.as_slice();
+        while let Some((server, tail)) = servers.split_first() {
+            match self.request_server_multi(request.clone(), server).await {
+                Ok(get_response) => return Ok(get_response),
+                Err(err) => {
+                    if tail.is_empty() {
+                        return Err(err);
+                    }
+                }
+            }
+            servers = tail;
+        }
+        unreachable!()
+    }
+
+    async fn request_server(
         &self,
         request: RequestMessage<Vec<u8>>,
         server: &Server,
@@ -97,7 +126,44 @@ impl Client {
         }
     }
 
-    pub async fn request_udptcp(
+    async fn request_server_multi(
+        &self,
+        request: RequestMessageMulti<Vec<u8>>,
+        server: &Server,
+    ) -> Result<
+        (
+            Box<dyn GetResponseMulti>,
+            Stats,
+            Box<dyn SendRequestMulti<RequestMessageMulti<Vec<u8>>>>,
+        ),
+        Error,
+    > {
+        match server.transport {
+            Transport::Udp => {
+                Err("UDP transport does not support SendRequestMulti".into())
+            }
+            Transport::UdpTcp => {
+                Err("UDP+TCP transport does not support SendRequestMulti"
+                    .into())
+            }
+            Transport::Tcp => {
+                let (stats, conn) = self
+                    .request_tcp_common::<RequestMessage<Vec<u8>>, _>(server)
+                    .await?;
+                let get_resp = SendRequestMulti::send_request(&conn, request);
+                Ok((get_resp, stats, Box::new(conn)))
+            }
+            Transport::Tls => {
+                let (stats, conn) = self
+                    .request_tls_common::<RequestMessage<Vec<u8>>, _>(server)
+                    .await?;
+                let get_resp = SendRequestMulti::send_request(&conn, request);
+                Ok((get_resp, stats, Box::new(conn)))
+            }
+        }
+    }
+
+    async fn request_udptcp(
         &self,
         request: RequestMessage<Vec<u8>>,
         server: &Server,
@@ -110,7 +176,7 @@ impl Client {
         }
     }
 
-    pub async fn request_udp(
+    async fn request_udp(
         &self,
         request: RequestMessage<Vec<u8>>,
         server: &Server,
@@ -125,28 +191,62 @@ impl Client {
         Ok(Answer { message, stats })
     }
 
-    pub async fn request_tcp(
+    async fn request_tcp(
         &self,
         request: RequestMessage<Vec<u8>>,
         server: &Server,
     ) -> Result<Answer, Error> {
-        let mut stats = Stats::new(server.addr, Protocol::Tcp);
+        let (mut stats, conn) = self
+            .request_tcp_common::<_, RequestMessageMulti<Vec<u8>>>(server)
+            .await?;
+        let message = SendRequest::send_request(&conn, request)
+            .get_response()
+            .await?;
+        stats.finalize();
+        Ok(Answer { message, stats })
+    }
+
+    async fn request_tcp_common<Req, ReqMulti>(
+        &self,
+        server: &Server,
+    ) -> Result<(Stats, stream::Connection<Req, ReqMulti>), Error>
+    where
+        Req: ComposeRequest + 'static,
+        ReqMulti: ComposeRequestMulti + 'static,
+    {
+        let stats = Stats::new(server.addr, Protocol::Tcp);
         let socket = TcpStream::connect(server.addr).await?;
         let (conn, tran) = stream::Connection::with_config(
             socket,
             Self::stream_config(server),
         );
         tokio::spawn(tran.run());
-        let message = conn.send_request(request).get_response().await?;
-        stats.finalize();
-        Ok(Answer { message, stats })
+        Ok((stats, conn))
     }
 
-    pub async fn request_tls(
+    async fn request_tls(
         &self,
         request: RequestMessage<Vec<u8>>,
         server: &Server,
     ) -> Result<Answer, Error> {
+        let (mut stats, conn) = self
+            .request_tls_common::<_, RequestMessageMulti<Vec<u8>>>(server)
+            .await?;
+        let message = SendRequest::send_request(&conn, request)
+            .get_response()
+            .await?;
+        stats.finalize();
+        Ok(Answer { message, stats })
+    }
+
+    async fn request_tls_common<Req, ReqMulti>(
+        &self,
+        server: &Server,
+    ) -> Result<(Stats, stream::Connection<Req, ReqMulti>), Error>
+    where
+        Req: ComposeRequest + 'static,
+        ReqMulti: ComposeRequestMulti + 'static,
+    {
         let root_store = RootCertStore {
             roots: webpki_roots::TLS_SERVER_ROOTS.into(),
         };
@@ -156,7 +256,7 @@ impl Client {
                 .with_no_client_auth(),
         );
 
-        let mut stats = Stats::new(server.addr, Protocol::Tls);
+        let stats = Stats::new(server.addr, Protocol::Tls);
         let tcp_socket = TcpStream::connect(server.addr).await?;
         let tls_connector = tokio_rustls::TlsConnector::from(client_config);
         let server_name = server
@@ -175,9 +275,7 @@ impl Client {
             Self::stream_config(server),
         );
         tokio::spawn(tran.run());
-        let message = conn.send_request(request).get_response().await?;
-        stats.finalize();
-        Ok(Answer { message, stats })
+        Ok((stats, conn))
     }
 
     fn dgram_config(server: &Server) -> dgram::Config {
@@ -235,6 +333,10 @@ pub struct Answer {
 }
 
 impl Answer {
+    pub fn new(message: Message<Bytes>, stats: Stats) -> Self {
+        Answer { message, stats }
+    }
+
     pub fn stats(&self) -> Stats {
         self.stats
     }
@@ -274,7 +376,7 @@ impl Stats {
         }
     }
 
-    fn finalize(&mut self) {
+    pub fn finalize(&mut self) {
         self.duration = Local::now() - self.start;
     }
 }
