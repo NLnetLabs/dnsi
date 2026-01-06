@@ -1,3 +1,6 @@
+[![Discuss on Discourse](https://img.shields.io/badge/Discourse-NLnet_Labs-orange?logo=Discourse)](https://community.nlnetlabs.nl/c/dns-libraries-tools/12)
+[![Mastodon Follow](https://img.shields.io/mastodon/follow/114692612288811644?domain=social.nlnetlabs.nl&style=social)](https://social.nlnetlabs.nl/@nlnetlabs)
+
 # dnsi – A tool to investigate the DNS
 
 `dnsi` is a command line tool to investigate various aspects of the
